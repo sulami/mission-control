@@ -12,9 +12,9 @@ use serial_core::SerialPort;
 use serial_unix::TTYPort;
 use time::OffsetDateTime;
 
-use crate::telemetry::DataPoint;
+use crate::telemetry::Frame;
 
-pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<DataPoint>) -> Result<()> {
+pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
     let mut buf = [0u8; 1024];
     loop {
@@ -25,11 +25,15 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<DataPoint>) 
                 buf.fill(0);
                 if tty.read(&mut buf).is_ok() {
                     let ts = OffsetDateTime::now_local().unwrap();
-                    if let Ok(parsed) = from_bytes_cobs::<LinearMap<&str, f32, 128>>(&mut buf) {
-                        for (k, v) in parsed.iter() {
-                            let data_point = DataPoint::new(k, &ts, *v);
-                            message_bus.broadcast(data_point);
-                        }
+                    if let Ok(parsed) = from_bytes_cobs::<LinearMap<String, f32, 128>>(&mut buf) {
+                        let frame = Frame::new(
+                            ts,
+                            &parsed
+                                .iter()
+                                .map(|(s, v)| (s.clone(), *v))
+                                .collect::<Vec<_>>(),
+                        );
+                        message_bus.broadcast(frame);
                     } else {
                         println!("[WARN] Got malformed package, ignoring",);
                     }

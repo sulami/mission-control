@@ -7,6 +7,7 @@ use egui::plot::{Line, Plot};
 
 struct GraphPlot {
     name: String,
+    source_name: String,
     data: Vec<(Duration, f32)>,
 }
 
@@ -20,18 +21,19 @@ pub struct Graph {
 impl Graph {
     pub fn new(
         name: &str,
-        plots: &[&str],
+        plots: &[(String, String)],
         cursor_group: egui::widgets::plot::LinkedCursorsGroup,
     ) -> Self {
         Self {
             name: name.to_string(),
             plots: plots
                 .iter()
-                .map(|name| {
+                .map(|(name, source_name)| {
                     (
                         name.to_string(),
                         GraphPlot {
                             name: name.to_string(),
+                            source_name: source_name.to_string(),
                             data: Vec::new(),
                         },
                     )
@@ -46,11 +48,13 @@ impl Graph {
         if self.start.is_none() {
             self.start = Some(OffsetDateTime::now_local().unwrap())
         }
-        if let Some(p) = self.plots.get_mut(name) {
-            p.data.push((
-                OffsetDateTime::now_local().unwrap() - self.start.unwrap(),
-                value,
-            ))
+        for plot in self.plots.values_mut() {
+            if plot.source_name == name {
+                plot.data.push((
+                    OffsetDateTime::now_local().unwrap() - self.start.unwrap(),
+                    value,
+                ))
+            }
         }
     }
 

@@ -6,10 +6,10 @@ use time::OffsetDateTime;
 mod graph;
 
 use crate::config::Config;
-use crate::telemetry::DataPoint;
+use crate::telemetry::Frame;
 use graph::Graph;
 
-pub fn run(cfg: Config, message_bus: BusReader<DataPoint>) {
+pub fn run(cfg: Config, message_bus: BusReader<Frame>) {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
         // maximized: true,
@@ -27,15 +27,11 @@ struct App {
     config: Config,
     graphs: Vec<Graph>,
     input_text: String,
-    message_bus: BusReader<DataPoint>,
+    message_bus: BusReader<Frame>,
 }
 
 impl App {
-    fn new(
-        _cc: &eframe::CreationContext<'_>,
-        cfg: Config,
-        message_bus: BusReader<DataPoint>,
-    ) -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>, cfg: Config, message_bus: BusReader<Frame>) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
         Self {
             start_time: OffsetDateTime::now_local().expect("failed to get local time"),
@@ -48,8 +44,8 @@ impl App {
                         name,
                         &g.plots
                             .iter()
-                            .map(|p| p.source_name.as_str())
-                            .collect::<Vec<&str>>(),
+                            .map(|p| (p.name.clone(), p.source_name.clone()))
+                            .collect::<Vec<_>>(),
                         cursor_group.clone(),
                     )
                 })
@@ -62,16 +58,11 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if let Ok(data_point) = self.message_bus.try_recv() {
-            // TODO Fix routing
-            // for graph in self.config.graphs.values() {
-            //     for plot in graph.plots {
-            //         if plot.source_name == data_point.name {
-            //         }
-            //     }
-            // }
-            for graph in self.graphs.iter_mut() {
-                graph.add_data(&data_point.name, data_point.data);
+        if let Ok(frame) = self.message_bus.try_recv() {
+            for data_point in frame.data_points {
+                for graph in self.graphs.iter_mut() {
+                    graph.add_data(&data_point.name, data_point.data);
+                }
             }
         }
 
@@ -153,7 +144,6 @@ impl eframe::App for App {
                 })
         });
 
-        // Aim for 120 fps
-        ctx.request_repaint_after(std::time::Duration::from_millis(8));
+        ctx.request_repaint_after(std::time::Duration::from_millis(12));
     }
 }
