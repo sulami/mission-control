@@ -1,10 +1,15 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use bus::Bus;
 use clap::Parser;
 
 mod config;
 mod gui;
+mod serial;
+mod telemetry;
+
+use telemetry::DataPoint;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -16,10 +21,22 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    let mut bus = Bus::<DataPoint>::new(1024);
+    let rx = bus.add_rx();
 
     let config = config::load_config(&args.config)?;
 
-    gui::run(config);
+    let second_config = config.clone();
+
+    std::thread::spawn(move || {
+        serial::listen(
+            second_config.serial.path.clone().into(),
+            second_config.serial.baud,
+            bus,
+        )
+    });
+
+    gui::run(config, rx);
 
     Ok(())
 }

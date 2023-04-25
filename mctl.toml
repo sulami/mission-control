@@ -1,0 +1,27 @@
+[serial]
+path = "/dev/ttys005"
+baud = 9600
+
+[[commands]]
+name = "Power on test"
+command = "pow"
+
+[[graphs.Voltage.plots]]
+name = "Voltage"
+source_name = "volt"
+color = "Red"
+
+[[graphs.Accelerometer.plots]]
+name = "X"
+source_name = "gx"
+color = "Red"
+
+[[graphs.Accelerometer.plots]]
+name = "Y"
+source_name = "gy"
+color = "Green"
+
+[[graphs.Accelerometer.plots]]
+name = "Z"
+source_name = "gz"
+color = "Blue"

@@ -42,16 +42,15 @@ impl Graph {
         }
     }
 
-    pub fn add_data(&mut self, data_points: HashMap<String, f32>) {
+    pub fn add_data(&mut self, name: &str, value: f32) {
         if self.start.is_none() {
             self.start = Some(OffsetDateTime::now_local().unwrap())
         }
-        for (k, v) in data_points {
-            let plot = self.plots.get_mut(&k).expect("failed to find plot");
-            plot.data.push((
+        if let Some(p) = self.plots.get_mut(name) {
+            p.data.push((
                 OffsetDateTime::now_local().unwrap() - self.start.unwrap(),
-                v,
-            ));
+                value,
+            ))
         }
     }
 

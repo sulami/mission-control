@@ -5,10 +5,10 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-#[derive(Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Config {
     /// Telemetry source
-    pub source: Source,
+    pub serial: Serial,
 
     /// Telemetry data to plot
     pub graphs: HashMap<String, Graph>,
@@ -17,39 +17,28 @@ pub struct Config {
     pub commands: Vec<Command>,
 }
 
-#[derive(Deserialize)]
-pub enum Source {
-    Serial {
-        /// Data input serial port
-        path: String,
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Serial {
+    /// Data input serial port
+    pub path: String,
 
-        /// Serial port baud rate
-        baud: usize,
-    },
+    /// Serial port baud rate
+    pub baud: usize,
 }
 
-impl Default for Source {
-    fn default() -> Self {
-        Self::Serial {
-            path: "".into(),
-            baud: 9600,
-        }
-    }
-}
-
-#[derive(Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Graph {
     pub plots: Vec<Plot>,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Plot {
     pub name: String,
     pub source_name: String,
     pub color: Color,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub enum Color {
     #[default]
     Red,
@@ -57,7 +46,7 @@ pub enum Color {
     Blue,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Command {
     name: String,
     command: String,

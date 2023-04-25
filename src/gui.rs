@@ -1,3 +1,4 @@
+use bus::BusReader;
 use eframe::egui;
 use egui::widgets::plot::LinkedCursorsGroup;
 use time::OffsetDateTime;
@@ -5,28 +6,40 @@ use time::OffsetDateTime;
 mod graph;
 
 use crate::config::Config;
+use crate::telemetry::DataPoint;
 use graph::Graph;
 
-pub fn run(cfg: Config) {
-    let native_options = eframe::NativeOptions::default();
+pub fn run(cfg: Config, message_bus: BusReader<DataPoint>) {
+    let native_options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(1024., 768.)),
+        // maximized: true,
+        ..Default::default()
+    };
     let _ = eframe::run_native(
         "Mission Control",
         native_options,
-        Box::new(|cc| Box::new(App::new(cc, cfg))),
+        Box::new(|cc| Box::new(App::new(cc, cfg, message_bus))),
     );
 }
 
 struct App {
     start_time: OffsetDateTime,
+    config: Config,
     graphs: Vec<Graph>,
     input_text: String,
+    message_bus: BusReader<DataPoint>,
 }
 
 impl App {
-    fn new(_cc: &eframe::CreationContext<'_>, cfg: Config) -> Self {
+    fn new(
+        _cc: &eframe::CreationContext<'_>,
+        cfg: Config,
+        message_bus: BusReader<DataPoint>,
+    ) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
         Self {
             start_time: OffsetDateTime::now_local().expect("failed to get local time"),
+            config: cfg.clone(),
             graphs: cfg
                 .graphs
                 .iter()
@@ -35,19 +48,33 @@ impl App {
                         name,
                         &g.plots
                             .iter()
-                            .map(|p| p.name.as_str())
+                            .map(|p| p.source_name.as_str())
                             .collect::<Vec<&str>>(),
                         cursor_group.clone(),
                     )
                 })
                 .collect(),
             input_text: String::new(),
+            message_bus,
         }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Ok(data_point) = self.message_bus.try_recv() {
+            // TODO Fix routing
+            // for graph in self.config.graphs.values() {
+            //     for plot in graph.plots {
+            //         if plot.source_name == data_point.name {
+            //         }
+            //     }
+            // }
+            for graph in self.graphs.iter_mut() {
+                graph.add_data(&data_point.name, data_point.data);
+            }
+        }
+
         egui::containers::TopBottomPanel::top("Status").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!(
@@ -125,5 +152,8 @@ impl eframe::App for App {
                     )
                 })
         });
+
+        // Aim for 120 fps
+        ctx.request_repaint_after(std::time::Duration::from_millis(8));
     }
 }
