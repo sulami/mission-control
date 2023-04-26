@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use bus::{Bus, BusReader};
+use fxhash::FxHashMap;
 use postcard::from_bytes_cobs;
 use serial_core::BaudRate::{self, *};
 use serial_core::SerialPort;
@@ -40,9 +41,7 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> R
                 buf.fill(0);
                 if tty.read(&mut buf).is_ok() {
                     let ts = OffsetDateTime::now_local().unwrap();
-                    if let Ok(parsed) =
-                        from_bytes_cobs::<std::collections::HashMap<String, f32>>(&mut buf)
-                    {
+                    if let Ok(parsed) = from_bytes_cobs::<FxHashMap<String, f32>>(&mut buf) {
                         let frame = Frame::new(
                             ts,
                             &parsed
