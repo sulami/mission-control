@@ -23,8 +23,10 @@ fn main() {
         assert!(reporter.record("gx", 0.5 - rand.read::<f32>()));
         assert!(reporter.record("gy", 0.5 - rand.read::<f32>()));
         assert!(reporter.record("gz", 9.3 + rand.read::<f32>()));
-        assert!(reporter.record("pot", (Instant::now() - start).as_secs_f32()));
+        assert!(reporter.record("vot", (Instant::now() - start).as_secs_f32()));
         assert!(reporter.record("sin", (Instant::now() - start).as_secs_f32().sin()));
+        assert!(reporter.record("cos", (Instant::now() - start).as_secs_f32().cos()));
+        assert!(reporter.record("tan", (Instant::now() - start).as_secs_f32().tan()));
         let mut report = [0u8; 1024];
         assert!(reporter.report(&mut report));
         let _ = tty.write(&report).expect("failed to write telemetry");

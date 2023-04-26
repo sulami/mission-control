@@ -7,6 +7,12 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Config {
+    /// Number of seconds of data to display in graphs
+    pub window_size: f32,
+
+    /// Number of seconds after which data is considered stale
+    pub data_timeout: f32,
+
     /// Telemetry source
     pub serial: Serial,
 

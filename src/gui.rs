@@ -9,8 +9,6 @@ use crate::config::Config;
 use crate::telemetry::Frame;
 use graph::Graph;
 
-const GRAPH_WINDOW_SIZE: Duration = Duration::seconds(10);
-
 pub fn run(cfg: Config, message_bus: BusReader<Frame>) {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
@@ -26,6 +24,7 @@ pub fn run(cfg: Config, message_bus: BusReader<Frame>) {
 
 struct App {
     start_time: OffsetDateTime,
+    last_data: OffsetDateTime,
     config: Config,
     graphs: Vec<Graph>,
     input_text: String,
@@ -35,8 +34,10 @@ struct App {
 impl App {
     fn new(_cc: &eframe::CreationContext<'_>, cfg: Config, message_bus: BusReader<Frame>) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
+        let now = OffsetDateTime::now_local().expect("failed to get local time");
         Self {
-            start_time: OffsetDateTime::now_local().expect("failed to get local time"),
+            start_time: now,
+            last_data: now,
             config: cfg.clone(),
             graphs: cfg
                 .graphs
@@ -48,7 +49,7 @@ impl App {
                             .iter()
                             .map(|p| (p.name.clone(), p.source_name.clone()))
                             .collect::<Vec<_>>(),
-                        GRAPH_WINDOW_SIZE,
+                        Duration::seconds_f32(cfg.window_size),
                         cursor_group.clone(),
                     )
                 })
@@ -61,22 +62,49 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let now = OffsetDateTime::now_local().unwrap();
+
         if let Ok(frame) = self.message_bus.try_recv() {
             for data_point in frame.data_points {
                 for graph in self.graphs.iter_mut() {
                     graph.add_data(&data_point.name, data_point.data);
                 }
             }
+            self.last_data = now;
         }
 
         egui::containers::TopBottomPanel::top("Status").show(ctx, |ui| {
             ui.horizontal(|ui| {
+                let data_age = now - self.last_data;
+                let data_stale = data_age > Duration::seconds_f32(self.config.data_timeout);
+                let status = if data_stale { "DATA STALE" } else { "GO" };
+                ui.label("System status:");
+                ui.label(
+                    egui::RichText::new(status)
+                        .background_color(if data_stale {
+                            egui::Color32::RED
+                        } else {
+                            egui::Color32::DARK_GREEN
+                        })
+                        .color(egui::Color32::WHITE)
+                        .strong(),
+                );
+
                 ui.label(format!(
-                    "MCT: {:?}",
-                    OffsetDateTime::now_local().unwrap() - self.start_time
+                    "CLT: {}",
+                    now.format(
+                        &time::format_description::parse(
+                            "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
+         sign:mandatory][offset_minute]"
+                        )
+                        .unwrap()
+                    )
+                    .unwrap()
                 ));
-                ui.label("System Status: Connected");
-                ui.label("Mission Status: Go");
+                ui.label(format!("GCT: {:.0}", now - self.start_time));
+                if data_stale {
+                    ui.label(format!("LDT: {:.2}", data_age));
+                }
             });
         });
 
@@ -147,6 +175,6 @@ impl eframe::App for App {
                 })
         });
 
-        ctx.request_repaint_after(std::time::Duration::from_millis(20));
+        ctx.request_repaint_after(std::time::Duration::from_millis(10));
     }
 }

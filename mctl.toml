@@ -1,3 +1,6 @@
+data_timeout = 1
+window_size = 10
+
 [serial]
 path = "/dev/ttys005"
 baud = 9600
@@ -26,12 +29,17 @@ name = "Z"
 source_name = "gz"
 color = "Blue"
 
-[[graphs.POT.plots]]
-name = "POT"
-source_name = "pot"
+[[graphs.VOT.plots]]
+name = "VOT"
+source_name = "vot"
 color = "Red"
 
-[[graphs.Sine.plots]]
+[[graphs.Math.plots]]
 name = "Sine"
 source_name = "sin"
+color = "Red"
+
+[[graphs.Math.plots]]
+name = "Cosine"
+source_name = "cos"
 color = "Red"
