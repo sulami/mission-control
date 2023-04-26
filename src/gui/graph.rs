@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-use time::Duration;
-use time::OffsetDateTime;
+use std::collections::{HashMap, VecDeque};
+use time::{Duration, OffsetDateTime};
 
 use eframe::egui;
 use egui::plot::{Line, Plot};
@@ -8,13 +7,14 @@ use egui::plot::{Line, Plot};
 struct GraphPlot {
     name: String,
     source_name: String,
-    data: Vec<(Duration, f32)>,
+    data: VecDeque<(Duration, f32)>,
 }
 
 pub struct Graph {
     name: String,
     plots: HashMap<String, GraphPlot>,
     start: Option<OffsetDateTime>,
+    window: Duration,
     cursor_group: egui::widgets::plot::LinkedCursorsGroup,
 }
 
@@ -22,6 +22,7 @@ impl Graph {
     pub fn new(
         name: &str,
         plots: &[(String, String)],
+        window: Duration,
         cursor_group: egui::widgets::plot::LinkedCursorsGroup,
     ) -> Self {
         Self {
@@ -34,12 +35,13 @@ impl Graph {
                         GraphPlot {
                             name: name.to_string(),
                             source_name: source_name.to_string(),
-                            data: Vec::new(),
+                            data: VecDeque::new(),
                         },
                     )
                 })
                 .collect(),
             start: None,
+            window,
             cursor_group,
         }
     }
@@ -50,10 +52,15 @@ impl Graph {
         }
         for plot in self.plots.values_mut() {
             if plot.source_name == name {
-                plot.data.push((
-                    OffsetDateTime::now_local().unwrap() - self.start.unwrap(),
-                    value,
-                ))
+                let new_duration = OffsetDateTime::now_local().unwrap() - self.start.unwrap();
+                plot.data.push_back((new_duration, value));
+                while let Some(data_point) = plot.data.front() {
+                    if new_duration - data_point.0 > self.window {
+                        plot.data.pop_front();
+                    } else {
+                        break;
+                    }
+                }
             }
         }
     }
@@ -66,9 +73,9 @@ impl Graph {
     pub fn draw(&self, ui: &mut egui::Ui) {
         let view_width = 280.;
         let view_height = 280.;
-        let constant_padding = 0.5;
+        let constant_padding = 1.;
         let padding_factor = 1.2;
-        let window_width = 10.;
+        let window_width = self.window;
 
         let plot_data: HashMap<String, Vec<[f64; 2]>> = self
             .plots
@@ -95,7 +102,9 @@ impl Graph {
             .flat_map(|p| {
                 p.data
                     .iter()
-                    .filter(|(k, _)| data_width - k.as_seconds_f64() <= window_width)
+                    .filter(|(k, _)| {
+                        data_width - k.as_seconds_f64() <= window_width.as_seconds_f64()
+                    })
                     .map(|(_, v)| v)
                     .collect::<Vec<_>>()
             })
@@ -106,7 +115,9 @@ impl Graph {
             .flat_map(|p| {
                 p.data
                     .iter()
-                    .filter(|(k, _)| data_width - k.as_seconds_f64() <= window_width)
+                    .filter(|(k, _)| {
+                        data_width - k.as_seconds_f64() <= window_width.as_seconds_f64()
+                    })
                     .map(|(_, v)| v)
                     .collect::<Vec<_>>()
             })
@@ -116,7 +127,7 @@ impl Graph {
             .include_y(maximum_in_window * padding_factor + constant_padding)
             .include_y(minimum_in_window * padding_factor - constant_padding)
             .include_x(data_width)
-            .include_x(data_width - window_width)
+            .include_x(data_width - window_width.as_seconds_f64())
             .width(view_width)
             .height(view_height)
             .allow_drag(false)

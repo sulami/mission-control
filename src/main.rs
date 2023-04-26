@@ -41,6 +41,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// TODO: Figure out a good way to keep track of time that works with the graphs.
-// Need to keep all original timestamps for persisting to disk
-// But need a continuous stream of data for the graphs
+// TODO: Format x-axes on plots.
+
+// TODO: Add a recorder that keeps all the data outside of the GUI bits.
+
+// TODO: Add a CSV export from the recorder.

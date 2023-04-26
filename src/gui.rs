@@ -1,13 +1,15 @@
 use bus::BusReader;
 use eframe::egui;
 use egui::widgets::plot::LinkedCursorsGroup;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 mod graph;
 
 use crate::config::Config;
 use crate::telemetry::Frame;
 use graph::Graph;
+
+const GRAPH_WINDOW_SIZE: Duration = Duration::seconds(10);
 
 pub fn run(cfg: Config, message_bus: BusReader<Frame>) {
     let native_options = eframe::NativeOptions {
@@ -46,6 +48,7 @@ impl App {
                             .iter()
                             .map(|p| (p.name.clone(), p.source_name.clone()))
                             .collect::<Vec<_>>(),
+                        GRAPH_WINDOW_SIZE,
                         cursor_group.clone(),
                     )
                 })
