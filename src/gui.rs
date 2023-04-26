@@ -47,7 +47,7 @@ impl App {
                         name,
                         &g.plots
                             .iter()
-                            .map(|p| (p.name.clone(), p.source_name.clone()))
+                            .map(|p| (p.name.clone(), p.source_name.clone(), p.color))
                             .collect::<Vec<_>>(),
                         Duration::seconds_f32(cfg.window_size),
                         cursor_group.clone(),
@@ -82,9 +82,9 @@ impl eframe::App for App {
                 ui.label(
                     egui::RichText::new(status)
                         .background_color(if data_stale {
-                            egui::Color32::RED
+                            egui::Color32::from_rgb(231, 111, 81)
                         } else {
-                            egui::Color32::DARK_GREEN
+                            egui::Color32::from_rgb(42, 157, 143)
                         })
                         .color(egui::Color32::WHITE)
                         .strong(),

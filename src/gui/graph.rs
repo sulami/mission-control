@@ -4,9 +4,12 @@ use time::{Duration, OffsetDateTime};
 use eframe::egui;
 use egui::plot::{Line, Plot};
 
+use crate::config::Color;
+
 struct GraphPlot {
     name: String,
     source_name: String,
+    color: egui::Color32,
     data: VecDeque<(Duration, f32)>,
 }
 
@@ -21,7 +24,7 @@ pub struct Graph {
 impl Graph {
     pub fn new(
         name: &str,
-        plots: &[(String, String)],
+        plots: &[(String, String, Color)],
         window: Duration,
         cursor_group: egui::widgets::plot::LinkedCursorsGroup,
     ) -> Self {
@@ -29,12 +32,19 @@ impl Graph {
             name: name.to_string(),
             plots: plots
                 .iter()
-                .map(|(name, source_name)| {
+                .map(|(name, source_name, color)| {
                     (
                         name.to_string(),
                         GraphPlot {
                             name: name.to_string(),
                             source_name: source_name.to_string(),
+                            color: match color {
+                                Color::Red => egui::Color32::from_rgb(231, 111, 81),
+                                Color::Orange => egui::Color32::from_rgb(244, 162, 97),
+                                Color::Yellow => egui::Color32::from_rgb(233, 196, 106),
+                                Color::Green => egui::Color32::from_rgb(42, 157, 143),
+                                Color::Blue => egui::Color32::from_rgb(69, 123, 157),
+                            },
                             data: VecDeque::new(),
                         },
                     )
@@ -123,6 +133,8 @@ impl Graph {
             })
             .fold(0., |a: f32, b: &f32| a.min(*b));
 
+        // TODO Use the plot color from config
+
         Plot::new(&self.name)
             .include_y(maximum_in_window * padding_factor + constant_padding)
             .include_y(minimum_in_window * padding_factor - constant_padding)
@@ -144,6 +156,7 @@ impl Graph {
                             .expect("failed to find plot")
                             .to_owned(),
                     )
+                    .color(plot.color)
                     .name(&plot.name);
                     plot_ui.line(line);
                 }

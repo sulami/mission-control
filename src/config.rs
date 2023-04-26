@@ -44,10 +44,12 @@ pub struct Plot {
     pub color: Color,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize)]
 pub enum Color {
     #[default]
     Red,
+    Orange,
+    Yellow,
     Green,
     Blue,
 }
