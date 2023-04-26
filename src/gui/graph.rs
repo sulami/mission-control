@@ -64,6 +64,12 @@ impl Graph {
     }
 
     pub fn draw(&self, ui: &mut egui::Ui) {
+        let view_width = 280.;
+        let view_height = 280.;
+        let constant_padding = 0.5;
+        let padding_factor = 1.2;
+        let window_width = 10.;
+
         let plot_data: HashMap<String, Vec<[f64; 2]>> = self
             .plots
             .iter()
@@ -78,26 +84,39 @@ impl Graph {
             })
             .collect();
 
-        let width: f64 = plot_data
+        let data_width: f64 = plot_data
             .values()
             .map(|p| p.last().map(|[ts, _]| *ts).unwrap_or(0.))
             .fold(0., |a, b| a.max(b));
 
-        let extreme = self
+        let maximum_in_window = self
             .plots
             .values()
-            .flat_map(|p| p.data.iter().map(|(_, v)| v.abs()).collect::<Vec<_>>())
-            .fold(0., |a: f32, b: f32| a.max(b));
-
-        let view_width = 280.;
-        let view_height = 200.;
+            .flat_map(|p| {
+                p.data
+                    .iter()
+                    .filter(|(k, _)| data_width - k.as_seconds_f64() <= window_width)
+                    .map(|(_, v)| v)
+                    .collect::<Vec<_>>()
+            })
+            .fold(0., |a: f32, b: &f32| a.max(*b));
+        let minimum_in_window = self
+            .plots
+            .values()
+            .flat_map(|p| {
+                p.data
+                    .iter()
+                    .filter(|(k, _)| data_width - k.as_seconds_f64() <= window_width)
+                    .map(|(_, v)| v)
+                    .collect::<Vec<_>>()
+            })
+            .fold(0., |a: f32, b: &f32| a.min(*b));
 
         Plot::new(&self.name)
-            .data_aspect(if width == 0. {
-                1.
-            } else {
-                width as f32 / (extreme * 2. * (view_width / view_height) * 1.1)
-            })
+            .include_y(maximum_in_window * padding_factor + constant_padding)
+            .include_y(minimum_in_window * padding_factor - constant_padding)
+            .include_x(data_width)
+            .include_x(data_width - window_width)
             .width(view_width)
             .height(view_height)
             .allow_drag(false)

@@ -25,3 +25,13 @@ color = "Green"
 name = "Z"
 source_name = "gz"
 color = "Blue"
+
+[[graphs.POT.plots]]
+name = "POT"
+source_name = "pot"
+color = "Red"
+
+[[graphs.Sine.plots]]
+name = "Sine"
+source_name = "sin"
+color = "Red"

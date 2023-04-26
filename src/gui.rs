@@ -144,6 +144,6 @@ impl eframe::App for App {
                 })
         });
 
-        ctx.request_repaint_after(std::time::Duration::from_millis(12));
+        ctx.request_repaint_after(std::time::Duration::from_millis(20));
     }
 }
