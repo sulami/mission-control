@@ -1548,7 +1548,6 @@ dependencies = [
  "csv",
  "eframe",
  "egui",
- "heapless",
  "postcard",
  "serde",
  "serial-core",

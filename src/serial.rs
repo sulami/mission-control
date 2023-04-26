@@ -4,8 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use bus::Bus;
-use heapless::LinearMap;
+use bus::{Bus, BusReader};
 use postcard::from_bytes_cobs;
 use serial_core::BaudRate::{self, *};
 use serial_core::SerialPort;
@@ -14,18 +13,36 @@ use time::OffsetDateTime;
 
 use crate::telemetry::Frame;
 
+pub fn send_command(
+    path: PathBuf,
+    baud_rate: usize,
+    mut message_bus: BusReader<String>,
+) -> Result<()> {
+    let baud = parse_baud_rate(baud_rate)?;
+    let mut tty = TTYPort::open(&path)?;
+    tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
+    loop {
+        if let Ok(cmd) = message_bus.try_recv() {
+            tty.write_all(cmd.as_bytes())?;
+        }
+    }
+}
+
 pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
     let mut buf = [0u8; 1024];
     loop {
         if let Ok(mut tty) = TTYPort::open(&path) {
             tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
+
             loop {
                 thread::sleep(Duration::from_micros(100));
                 buf.fill(0);
                 if tty.read(&mut buf).is_ok() {
                     let ts = OffsetDateTime::now_local().unwrap();
-                    if let Ok(parsed) = from_bytes_cobs::<LinearMap<String, f32, 128>>(&mut buf) {
+                    if let Ok(parsed) =
+                        from_bytes_cobs::<std::collections::HashMap<String, f32>>(&mut buf)
+                    {
                         let frame = Frame::new(
                             ts,
                             &parsed

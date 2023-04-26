@@ -5,6 +5,7 @@ use eframe::egui;
 use egui::plot::{Line, Plot};
 
 use crate::config::Color;
+use crate::gui::color::egui_color;
 
 struct GraphPlot {
     name: String,
@@ -38,13 +39,7 @@ impl Graph {
                         GraphPlot {
                             name: name.to_string(),
                             source_name: source_name.to_string(),
-                            color: match color {
-                                Color::Red => egui::Color32::from_rgb(231, 111, 81),
-                                Color::Orange => egui::Color32::from_rgb(244, 162, 97),
-                                Color::Yellow => egui::Color32::from_rgb(233, 196, 106),
-                                Color::Green => egui::Color32::from_rgb(42, 157, 143),
-                                Color::Blue => egui::Color32::from_rgb(69, 123, 157),
-                            },
+                            color: egui_color(*color),
                             data: VecDeque::new(),
                         },
                     )

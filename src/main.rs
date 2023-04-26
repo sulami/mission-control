@@ -21,22 +21,22 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let mut bus = Bus::<Frame>::new(1024);
-    let rx = bus.add_rx();
+    let mut telemetry_bus = Bus::<Frame>::new(1024);
+    let gui_telemetry_rx = telemetry_bus.add_rx();
+
+    let mut command_bus = Bus::<String>::new(16);
+    let command_rx = command_bus.add_rx();
 
     let config = config::load_config(&args.config)?;
+    let baud_rate = config.serial.baud;
 
-    let second_config = config.clone();
+    let serial_path = config.serial.path.clone();
+    std::thread::spawn(move || serial::send_command(serial_path.into(), baud_rate, command_rx));
 
-    std::thread::spawn(move || {
-        serial::listen(
-            second_config.serial.path.clone().into(),
-            second_config.serial.baud,
-            bus,
-        )
-    });
+    let serial_path = config.serial.path.clone();
+    std::thread::spawn(move || serial::listen(serial_path.into(), baud_rate, telemetry_bus));
 
-    gui::run(config, rx);
+    gui::run(config, gui_telemetry_rx, command_bus);
 
     Ok(())
 }

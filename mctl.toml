@@ -6,8 +6,19 @@ path = "/dev/ttys005"
 baud = 9600
 
 [[commands]]
-name = "Power on test"
+name = "Power on check"
 command = "pow"
+color = "Blue"
+
+[[commands]]
+name = "Lift-off"
+command = "liftoff"
+color = "Orange"
+
+[[commands]]
+name = "Abort"
+command = "abort"
+color = "Red"
 
 [[graphs.Voltage.plots]]
 name = "Voltage"

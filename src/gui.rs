@@ -1,15 +1,17 @@
-use bus::BusReader;
+use bus::{Bus, BusReader};
 use eframe::egui;
 use egui::widgets::plot::LinkedCursorsGroup;
 use time::{Duration, OffsetDateTime};
 
+mod color;
 mod graph;
 
 use crate::config::Config;
 use crate::telemetry::Frame;
+use color::*;
 use graph::Graph;
 
-pub fn run(cfg: Config, message_bus: BusReader<Frame>) {
+pub fn run(cfg: Config, telemetry_bus: BusReader<Frame>, command_bus: Bus<String>) {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
         // maximized: true,
@@ -18,7 +20,7 @@ pub fn run(cfg: Config, message_bus: BusReader<Frame>) {
     let _ = eframe::run_native(
         "Mission Control",
         native_options,
-        Box::new(|cc| Box::new(App::new(cc, cfg, message_bus))),
+        Box::new(|cc| Box::new(App::new(cc, cfg, telemetry_bus, command_bus))),
     );
 }
 
@@ -28,11 +30,17 @@ struct App {
     config: Config,
     graphs: Vec<Graph>,
     input_text: String,
-    message_bus: BusReader<Frame>,
+    telemetry_bus: BusReader<Frame>,
+    command_bus: Bus<String>,
 }
 
 impl App {
-    fn new(_cc: &eframe::CreationContext<'_>, cfg: Config, message_bus: BusReader<Frame>) -> Self {
+    fn new(
+        _cc: &eframe::CreationContext<'_>,
+        cfg: Config,
+        telemetry_bus: BusReader<Frame>,
+        command_bus: Bus<String>,
+    ) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
         let now = OffsetDateTime::now_local().expect("failed to get local time");
         Self {
@@ -55,7 +63,8 @@ impl App {
                 })
                 .collect(),
             input_text: String::new(),
-            message_bus,
+            telemetry_bus,
+            command_bus,
         }
     }
 }
@@ -64,7 +73,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let now = OffsetDateTime::now_local().unwrap();
 
-        if let Ok(frame) = self.message_bus.try_recv() {
+        if let Ok(frame) = self.telemetry_bus.try_recv() {
             for data_point in frame.data_points {
                 for graph in self.graphs.iter_mut() {
                     graph.add_data(&data_point.name, data_point.data);
@@ -86,7 +95,7 @@ impl eframe::App for App {
                         } else {
                             egui::Color32::from_rgb(42, 157, 143)
                         })
-                        .color(egui::Color32::WHITE)
+                        .color(egui::Color32::BLACK)
                         .strong(),
                 );
 
@@ -114,6 +123,7 @@ impl eframe::App for App {
                     .desired_width(ui.available_width()),
             );
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.command_bus.broadcast(self.input_text.clone());
                 self.input_text.clear();
                 response.request_focus();
             }
@@ -129,7 +139,17 @@ impl eframe::App for App {
                         ui.heading("Commands");
                         ui.set_width(120.);
                         ui.vertical(|ui| {
-                            if ui.button("Power on check").clicked() {};
+                            for command in &self.config.commands {
+                                let button = egui::Button::new(
+                                    egui::RichText::new(&command.name)
+                                        .color(egui::Color32::BLACK)
+                                        .strong(),
+                                )
+                                .fill(egui_color(command.color));
+                                if ui.add(button).clicked() {
+                                    self.command_bus.broadcast(command.command.clone());
+                                };
+                            }
                         });
                     });
             });
@@ -152,7 +172,17 @@ impl eframe::App for App {
                                     graph.reset();
                                 }
                             };
-                            if ui.button("Quit").clicked() {
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        egui::RichText::new("Quit")
+                                            .color(egui::Color32::BLACK)
+                                            .strong(),
+                                    )
+                                    .fill(RED),
+                                )
+                                .clicked()
+                            {
                                 std::process::exit(0);
                             };
                         });

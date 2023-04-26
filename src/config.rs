@@ -56,19 +56,12 @@ pub enum Color {
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Command {
-    name: String,
-    command: String,
+    pub name: String,
+    pub command: String,
+    pub color: Color,
 }
 
 pub fn load_config(path: &PathBuf) -> Result<Config> {
     toml::from_str(&fs::read_to_string(path).context("unable to read config file")?)
         .context("unable to parse config file")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_load() {}
 }
