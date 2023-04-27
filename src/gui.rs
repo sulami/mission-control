@@ -8,10 +8,11 @@ mod graph;
 
 use crate::config::Config;
 use crate::telemetry::Frame;
+use crate::Command;
 use color::*;
 use graph::Graph;
 
-pub fn run(cfg: Config, telemetry_bus: BusReader<Frame>, command_bus: Bus<String>) {
+pub fn run(cfg: Config, telemetry_bus: BusReader<Frame>, command_bus: Bus<Command>) {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
         // maximized: true,
@@ -31,7 +32,7 @@ struct App {
     graphs: Vec<Graph>,
     input_text: String,
     telemetry_bus: BusReader<Frame>,
-    command_bus: Bus<String>,
+    command_bus: Bus<Command>,
 }
 
 impl App {
@@ -39,7 +40,7 @@ impl App {
         _cc: &eframe::CreationContext<'_>,
         cfg: Config,
         telemetry_bus: BusReader<Frame>,
-        command_bus: Bus<String>,
+        command_bus: Bus<Command>,
     ) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
         let now = OffsetDateTime::now_local().expect("failed to get local time");
@@ -123,7 +124,8 @@ impl eframe::App for App {
                     .desired_width(ui.available_width()),
             );
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                self.command_bus.broadcast(self.input_text.clone());
+                self.command_bus
+                    .broadcast(Command::SendCommand(self.input_text.clone()));
                 self.input_text.clear();
                 response.request_focus();
             }
@@ -147,7 +149,8 @@ impl eframe::App for App {
                                 )
                                 .fill(egui_color(command.color));
                                 if ui.add(button).clicked() {
-                                    self.command_bus.broadcast(command.command.clone());
+                                    self.command_bus
+                                        .broadcast(Command::SendCommand(command.command.clone()));
                                 };
                             }
                         });
@@ -163,12 +166,15 @@ impl eframe::App for App {
                         ui.vertical(|ui| {
                             ui.set_width(140.);
                             ui.heading("System");
-                            if ui.button("Save to disk").clicked() {};
+                            if ui.button("Save to disk").clicked() {
+                                self.command_bus.broadcast(Command::Export);
+                            };
 
                             ui.add_space(20.);
 
                             if ui.button("Reset").clicked() {
                                 for graph in &mut self.graphs {
+                                    self.command_bus.broadcast(Command::Reset);
                                     graph.reset();
                                 }
                             };
@@ -191,6 +197,7 @@ impl eframe::App for App {
 
         egui::containers::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Telemetry");
+            // TODO expand the scroll area to fill the available space
             egui::ScrollArea::new([true, true])
                 .hscroll(false)
                 .show(ui, |ui| {

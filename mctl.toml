@@ -54,3 +54,8 @@ color = "Red"
 name = "Cosine"
 source_name = "cos"
 color = "Blue"
+
+[[graphs.Counter.plots]]
+name = "Frame #"
+source_name = "ctr"
+color = "Green"

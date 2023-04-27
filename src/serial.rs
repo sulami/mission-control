@@ -13,17 +13,18 @@ use serial_unix::TTYPort;
 use time::OffsetDateTime;
 
 use crate::telemetry::Frame;
+use crate::Command;
 
 pub fn send_command(
     path: PathBuf,
     baud_rate: usize,
-    mut message_bus: BusReader<String>,
+    mut message_bus: BusReader<Command>,
 ) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
     let mut tty = TTYPort::open(&path)?;
     tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
     loop {
-        if let Ok(cmd) = message_bus.try_recv() {
+        if let Ok(Command::SendCommand(cmd)) = message_bus.try_recv() {
             tty.write_all(cmd.as_bytes())?;
         }
     }
@@ -41,14 +42,22 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> R
 
             // Loop #2: Reading from the TTY
             loop {
-                thread::sleep(Duration::from_micros(100));
                 if let Ok(bytes_read) = tty.read(&mut read_buf) {
+                    // println!("read {} bytes", bytes_read);
+                    // println!("read buf: {:?}", read_buf);
                     message_bytes.extend_from_slice(&read_buf[..bytes_read]);
+                    // println!("message buf: {:?}", message_bytes);
 
                     // Loop #3: Parsing the message buffer
                     loop {
                         match take_from_bytes_cobs::<FxHashMap<String, f32>>(&mut message_bytes) {
                             Ok((parsed, rest)) => {
+                                // println!(
+                                //     "read {} bytes, got frame: {:?}, {} bytes left in message buffer: {:?}",
+                                //     bytes_read,
+                                //     parsed.get("ctr"),
+                                //     rest.len(), rest,
+                                // );
                                 let frame = Frame::new(
                                     OffsetDateTime::now_local().unwrap(),
                                     &parsed.into_iter().collect::<Vec<_>>(),
@@ -56,18 +65,25 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> R
                                 message_bus.broadcast(frame);
                                 message_bytes = rest.to_vec();
                             }
+                            Err(postcard::Error::DeserializeBadEncoding) => {
+                                // Not enough data to get out a COBS frame.
+                                println!("bad encoding");
+                                break;
+                            }
                             Err(postcard::Error::DeserializeUnexpectedEnd) => {
                                 message_bytes.clear();
                                 break;
                             }
                             Err(_) => {
                                 println!("[WARN] Got malformed package, ignoring",);
-                                message_bytes.clear();
+                                // message_bytes.clear();
                                 break;
                             }
                         }
                     }
                 }
+
+                thread::sleep(Duration::from_micros(500));
             }
         } else {
             // Failed to open TTY.

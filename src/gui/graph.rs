@@ -128,8 +128,6 @@ impl Graph {
             })
             .fold(0., |a: f32, b: &f32| a.min(*b));
 
-        // TODO Use the plot color from config
-
         Plot::new(&self.name)
             .include_y(maximum_in_window * padding_factor + constant_padding)
             .include_y(minimum_in_window * padding_factor - constant_padding)
