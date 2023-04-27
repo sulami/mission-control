@@ -17,8 +17,10 @@ fn main() {
     tty.reconfigure(&|settings| settings.set_baud_rate(Baud9600))
         .expect("failed to setup tty");
     let start = Instant::now();
+    let mut counter = 0;
 
     loop {
+        assert!(reporter.record("ctr", counter as f32));
         assert!(reporter.record("volt", 3.3 + rand.read::<f32>()));
         assert!(reporter.record("gx", 0.5 - rand.read::<f32>()));
         assert!(reporter.record("gy", 0.5 - rand.read::<f32>()));
@@ -31,6 +33,7 @@ fn main() {
         assert!(reporter.report(&mut report));
         let _ = tty.write(&report).expect("failed to write telemetry");
         let _ = tty.flush();
+        counter += 1;
         thread::sleep(Duration::from_millis(50));
     }
 }

@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Result};
 use bus::{Bus, BusReader};
 use fxhash::FxHashMap;
-use postcard::from_bytes_cobs;
+use postcard::take_from_bytes_cobs;
 use serial_core::BaudRate::{self, *};
 use serial_core::SerialPort;
 use serial_unix::TTYPort;
@@ -31,27 +31,41 @@ pub fn send_command(
 
 pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
-    let mut buf = [0u8; 1024];
+    let mut read_buf = [0u8; 1024];
+    let mut message_bytes: Vec<u8> = vec![];
+
+    // Loop #1: Trying to open the TTY
     loop {
         if let Ok(mut tty) = TTYPort::open(&path) {
             tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
 
+            // Loop #2: Reading from the TTY
             loop {
                 thread::sleep(Duration::from_micros(100));
-                buf.fill(0);
-                if tty.read(&mut buf).is_ok() {
-                    let ts = OffsetDateTime::now_local().unwrap();
-                    if let Ok(parsed) = from_bytes_cobs::<FxHashMap<String, f32>>(&mut buf) {
-                        let frame = Frame::new(
-                            ts,
-                            &parsed
-                                .iter()
-                                .map(|(s, v)| (s.clone(), *v))
-                                .collect::<Vec<_>>(),
-                        );
-                        message_bus.broadcast(frame);
-                    } else {
-                        println!("[WARN] Got malformed package, ignoring",);
+                if let Ok(bytes_read) = tty.read(&mut read_buf) {
+                    message_bytes.extend_from_slice(&read_buf[..bytes_read]);
+
+                    // Loop #3: Parsing the message buffer
+                    loop {
+                        match take_from_bytes_cobs::<FxHashMap<String, f32>>(&mut message_bytes) {
+                            Ok((parsed, rest)) => {
+                                let frame = Frame::new(
+                                    OffsetDateTime::now_local().unwrap(),
+                                    &parsed.into_iter().collect::<Vec<_>>(),
+                                );
+                                message_bus.broadcast(frame);
+                                message_bytes = rest.to_vec();
+                            }
+                            Err(postcard::Error::DeserializeUnexpectedEnd) => {
+                                message_bytes.clear();
+                                break;
+                            }
+                            Err(_) => {
+                                println!("[WARN] Got malformed package, ignoring",);
+                                message_bytes.clear();
+                                break;
+                            }
+                        }
                     }
                 }
             }
