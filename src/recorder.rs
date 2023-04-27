@@ -1,3 +1,6 @@
+use std::thread;
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use bus::BusReader;
 use csv::Writer;
@@ -34,6 +37,8 @@ impl Recorder {
                 }
                 _ => {}
             }
+
+            thread::sleep(Duration::from_millis(10));
         }
     }
 
@@ -72,7 +77,7 @@ impl Recorder {
                 while record.len() <= index {
                     record.push("".to_string());
                 }
-                record[index] = data_point.data.to_string();
+                record[index] = data_point.value.to_string();
             }
             wtr.write_record(record)?;
         }

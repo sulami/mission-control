@@ -6,18 +6,18 @@ use egui::plot::{Line, Plot};
 
 use crate::config::Color;
 use crate::gui::color::egui_color;
+use crate::telemetry::{DataPoint, Frame};
 
 struct GraphPlot {
     name: String,
     source_name: String,
     color: egui::Color32,
-    data: VecDeque<(Duration, f32)>,
+    data: VecDeque<DataPoint>,
 }
 
 pub struct Graph {
     name: String,
     plots: HashMap<String, GraphPlot>,
-    start: Option<OffsetDateTime>,
     window: Duration,
     cursor_group: egui::widgets::plot::LinkedCursorsGroup,
 }
@@ -45,25 +45,22 @@ impl Graph {
                     )
                 })
                 .collect(),
-            start: None,
             window,
             cursor_group,
         }
     }
 
-    pub fn add_data(&mut self, name: &str, value: f32) {
-        if self.start.is_none() {
-            self.start = Some(OffsetDateTime::now_local().unwrap())
-        }
-        for plot in self.plots.values_mut() {
-            if plot.source_name == name {
-                let new_duration = OffsetDateTime::now_local().unwrap() - self.start.unwrap();
-                plot.data.push_back((new_duration, value));
-                while let Some(data_point) = plot.data.front() {
-                    if new_duration - data_point.0 > self.window {
-                        plot.data.pop_front();
-                    } else {
-                        break;
+    pub fn add_data(&mut self, frame: &Frame) {
+        for data_point in frame.data_points.iter() {
+            for plot in self.plots.values_mut() {
+                if plot.source_name == data_point.name {
+                    plot.data.push_back(data_point.clone());
+                    while let Some(data_point) = plot.data.front() {
+                        if frame.timestamp - data_point.timestamp > self.window {
+                            plot.data.pop_front();
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
@@ -71,7 +68,6 @@ impl Graph {
     }
 
     pub fn reset(&mut self) {
-        self.start = None;
         self.plots.values_mut().for_each(|p| p.data.clear());
     }
 
@@ -81,6 +77,7 @@ impl Graph {
         let constant_padding = 1.;
         let padding_factor = 1.2;
         let window_width = self.window;
+        let now = OffsetDateTime::now_local().unwrap();
 
         let plot_data: HashMap<String, Vec<[f64; 2]>> = self
             .plots
@@ -90,49 +87,46 @@ impl Graph {
                     n.clone(),
                     p.data
                         .iter()
-                        .map(|(ts, v)| [ts.as_seconds_f64(), *v as f64])
+                        .map(|dp| {
+                            [
+                                window_width.as_seconds_f64()
+                                    - (now - dp.timestamp).as_seconds_f64(),
+                                dp.value as f64,
+                            ]
+                        })
                         .collect(),
                 )
             })
             .collect();
 
-        let data_width: f64 = plot_data
+        let latest_data: f64 = plot_data
             .values()
             .map(|p| p.last().map(|[ts, _]| *ts).unwrap_or(0.))
             .fold(0., |a, b| a.max(b));
 
-        let maximum_in_window = self
-            .plots
-            .values()
-            .flat_map(|p| {
-                p.data
-                    .iter()
-                    .filter(|(k, _)| {
-                        data_width - k.as_seconds_f64() <= window_width.as_seconds_f64()
-                    })
-                    .map(|(_, v)| v)
-                    .collect::<Vec<_>>()
-            })
-            .fold(0., |a: f32, b: &f32| a.max(*b));
-        let minimum_in_window = self
-            .plots
-            .values()
-            .flat_map(|p| {
-                p.data
-                    .iter()
-                    .filter(|(k, _)| {
-                        data_width - k.as_seconds_f64() <= window_width.as_seconds_f64()
-                    })
-                    .map(|(_, v)| v)
-                    .collect::<Vec<_>>()
-            })
-            .fold(0., |a: f32, b: &f32| a.min(*b));
+        let mut min: f64 = 0.;
+        let mut max: f64 = 0.;
+
+        self.plots.values().for_each(|p| {
+            let p_min: f64 = p
+                .data
+                .iter()
+                .map(|dp| dp.value)
+                .fold(0., |a, b| a.min(b.into()));
+            let p_max: f64 = p
+                .data
+                .iter()
+                .map(|dp| dp.value)
+                .fold(0., |a, b| a.max(b.into()));
+            min = min.min(p_min);
+            max = max.max(p_max);
+        });
 
         Plot::new(&self.name)
-            .include_y(maximum_in_window * padding_factor + constant_padding)
-            .include_y(minimum_in_window * padding_factor - constant_padding)
-            .include_x(data_width)
-            .include_x(data_width - window_width.as_seconds_f64())
+            .include_y(max * padding_factor + constant_padding)
+            .include_y(min * padding_factor - constant_padding)
+            .include_x(latest_data)
+            .include_x(latest_data - window_width.as_seconds_f64())
             .width(view_width)
             .height(view_height)
             .allow_drag(false)

@@ -75,10 +75,8 @@ impl eframe::App for App {
         let now = OffsetDateTime::now_local().unwrap();
 
         if let Ok(frame) = self.telemetry_bus.try_recv() {
-            for data_point in frame.data_points {
-                for graph in self.graphs.iter_mut() {
-                    graph.add_data(&data_point.name, data_point.data);
-                }
+            for graph in self.graphs.iter_mut() {
+                graph.add_data(&frame);
             }
             self.last_data = now;
         }

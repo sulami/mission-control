@@ -22,15 +22,15 @@ impl Frame {
 pub struct DataPoint {
     pub name: String,
     pub timestamp: OffsetDateTime,
-    pub data: f32,
+    pub value: f32,
 }
 
 impl DataPoint {
-    pub fn new(name: &str, timestamp: OffsetDateTime, data: f32) -> Self {
+    pub fn new(name: &str, timestamp: OffsetDateTime, value: f32) -> Self {
         Self {
             name: name.to_string(),
             timestamp,
-            data,
+            value,
         }
     }
 }

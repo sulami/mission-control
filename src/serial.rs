@@ -27,6 +27,8 @@ pub fn send_command(
         if let Ok(Command::SendCommand(cmd)) = message_bus.try_recv() {
             tty.write_all(cmd.as_bytes())?;
         }
+
+        thread::sleep(Duration::from_millis(50));
     }
 }
 
@@ -43,21 +45,12 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> R
             // Loop #2: Reading from the TTY
             loop {
                 if let Ok(bytes_read) = tty.read(&mut read_buf) {
-                    // println!("read {} bytes", bytes_read);
-                    // println!("read buf: {:?}", read_buf);
                     message_bytes.extend_from_slice(&read_buf[..bytes_read]);
-                    // println!("message buf: {:?}", message_bytes);
 
                     // Loop #3: Parsing the message buffer
                     loop {
                         match take_from_bytes_cobs::<FxHashMap<String, f32>>(&mut message_bytes) {
                             Ok((parsed, rest)) => {
-                                // println!(
-                                //     "read {} bytes, got frame: {:?}, {} bytes left in message buffer: {:?}",
-                                //     bytes_read,
-                                //     parsed.get("ctr"),
-                                //     rest.len(), rest,
-                                // );
                                 let frame = Frame::new(
                                     OffsetDateTime::now_local().unwrap(),
                                     &parsed.into_iter().collect::<Vec<_>>(),
@@ -83,7 +76,7 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> R
                     }
                 }
 
-                thread::sleep(Duration::from_micros(500));
+                thread::sleep(Duration::from_millis(5));
             }
         } else {
             // Failed to open TTY.
