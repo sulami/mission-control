@@ -99,11 +99,6 @@ impl Graph {
             })
             .collect();
 
-        let latest_data: f64 = plot_data
-            .values()
-            .map(|p| p.last().map(|[ts, _]| *ts).unwrap_or(0.))
-            .fold(0., |a, b| a.max(b));
-
         let mut min: f64 = 0.;
         let mut max: f64 = 0.;
 
@@ -125,8 +120,8 @@ impl Graph {
         Plot::new(&self.name)
             .include_y(max * padding_factor + constant_padding)
             .include_y(min * padding_factor - constant_padding)
-            .include_x(latest_data)
-            .include_x(latest_data - window_width.as_seconds_f64())
+            .include_x(window_width.as_seconds_f64())
+            .include_x(0.)
             .width(view_width)
             .height(view_height)
             .allow_drag(false)
