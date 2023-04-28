@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use async_std::task;
 use bus::Bus;
 use clap::Parser;
 
@@ -29,7 +30,8 @@ pub enum Command {
     Exit,
 }
 
-fn main() -> Result<()> {
+#[async_std::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
     let config = config::load_config(&args.config)?;
 
@@ -41,26 +43,26 @@ fn main() -> Result<()> {
     let command_rx = command_bus.add_rx();
 
     let mut recorder = Recorder::new();
-    std::thread::spawn(move || recorder.run(recorder_telemetry_rx, command_rx));
+    task::spawn(async move { recorder.run(recorder_telemetry_rx, command_rx).await });
 
     let baud_rate = config.serial.baud;
     let command_rx = command_bus.add_rx();
 
     let serial_path = config.serial.path.clone();
-    std::thread::spawn(move || {
-        serial::send_command(serial_path.into(), baud_rate, command_rx)
+    task::spawn(async move {
+        serial::send_commands(serial_path.into(), baud_rate, command_rx)
+            .await
             .expect("failed to open serial port for sending commands")
     });
 
     let serial_path = config.serial.path.clone();
-    std::thread::spawn(move || {
+    task::spawn(async move {
         serial::listen(serial_path.into(), baud_rate, telemetry_bus)
-            .expect("failed to open serial port for listening");
+            .await
+            .expect("failed to open serial port for listening")
     });
 
-    gui::run(config, gui_telemetry_rx, command_bus);
+    gui::run(config, gui_telemetry_rx, command_bus)?;
 
     Ok(())
 }
-
-// TODO: Format x-axes on plots.

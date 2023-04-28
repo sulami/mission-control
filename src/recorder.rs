@@ -1,7 +1,5 @@
-use std::thread;
-use std::time::Duration;
-
 use anyhow::{Context, Result};
+use async_std::task;
 use bus::BusReader;
 use csv::Writer;
 use time::{macros::format_description, OffsetDateTime};
@@ -18,27 +16,32 @@ impl Recorder {
         Self { frames: vec![] }
     }
 
-    pub fn run(&mut self, mut message_bus: BusReader<Frame>, mut command_bus: BusReader<Command>) {
+    pub async fn run(
+        &mut self,
+        mut message_bus: BusReader<Frame>,
+        mut command_bus: BusReader<Command>,
+    ) {
         loop {
             if let Ok(frame) = message_bus.try_recv() {
                 self.frames.push(frame);
             }
-            match command_bus.try_recv() {
-                Ok(Command::Export) => {
-                    if self.export().is_err() {
-                        println!("Failed to export data");
+            if let Ok(cmd) = command_bus.try_recv() {
+                match cmd {
+                    Command::Export => {
+                        if self.export().is_err() {
+                            println!("[WARN] Failed to export data");
+                        }
                     }
+                    Command::Reset => {
+                        self.frames.clear();
+                    }
+                    Command::Exit => {
+                        return;
+                    }
+                    _ => {}
                 }
-                Ok(Command::Reset) => {
-                    self.frames.clear();
-                }
-                Ok(Command::Exit) => {
-                    break;
-                }
-                _ => {}
             }
-
-            thread::sleep(Duration::from_millis(10));
+            task::sleep(std::time::Duration::from_millis(100)).await;
         }
     }
 

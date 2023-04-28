@@ -4,6 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
+use async_std::task;
 use bus::{Bus, BusReader};
 use fxhash::FxHashMap;
 use postcard::take_from_bytes_cobs;
@@ -15,7 +16,7 @@ use time::OffsetDateTime;
 use crate::telemetry::Frame;
 use crate::Command;
 
-pub fn send_command(
+pub async fn send_commands(
     path: PathBuf,
     baud_rate: usize,
     mut message_bus: BusReader<Command>,
@@ -26,22 +27,21 @@ pub fn send_command(
             Ok(mut tty) => {
                 tty.reconfigure(&|settings| settings.set_baud_rate(baud))
                     .context("failed to configure TTY")?;
-                loop {
-                    if let Ok(Command::SendCommand(cmd)) = message_bus.try_recv() {
-                        tty.write_all(cmd.as_bytes())?;
+                message_bus.iter().for_each(|cmd| {
+                    if let Command::SendCommand(cmd) = cmd {
+                        println!("[INFO] Sending command: {cmd}");
+                        tty.write_all(cmd.as_bytes()).unwrap();
                     }
-
-                    thread::sleep(Duration::from_millis(50));
-                }
+                })
             }
             _ => {
-                thread::sleep(Duration::from_secs(1));
+                task::sleep(Duration::from_secs(1)).await;
             }
         }
     }
 }
 
-pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> Result<()> {
+pub async fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
 
     loop {

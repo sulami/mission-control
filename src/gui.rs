@@ -1,3 +1,4 @@
+use anyhow::Result;
 use bus::{Bus, BusReader};
 use eframe::egui;
 use egui::widgets::plot::LinkedCursorsGroup;
@@ -12,17 +13,19 @@ use crate::Command;
 use color::*;
 use graph::Graph;
 
-pub fn run(cfg: Config, telemetry_bus: BusReader<Frame>, command_bus: Bus<Command>) {
+pub fn run(cfg: Config, telemetry_bus: BusReader<Frame>, command_bus: Bus<Command>) -> Result<()> {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
         // maximized: true,
         ..Default::default()
     };
-    let _ = eframe::run_native(
+    eframe::run_native(
         "Mission Control",
         native_options,
         Box::new(|cc| Box::new(App::new(cc, cfg, telemetry_bus, command_bus))),
-    );
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to run gui: {}", e))?;
+    Ok(())
 }
 
 struct App {
