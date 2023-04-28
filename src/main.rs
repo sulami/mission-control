@@ -47,10 +47,16 @@ fn main() -> Result<()> {
     let command_rx = command_bus.add_rx();
 
     let serial_path = config.serial.path.clone();
-    std::thread::spawn(move || serial::send_command(serial_path.into(), baud_rate, command_rx));
+    std::thread::spawn(move || {
+        serial::send_command(serial_path.into(), baud_rate, command_rx)
+            .expect("failed to open serial port for sending commands")
+    });
 
     let serial_path = config.serial.path.clone();
-    std::thread::spawn(move || serial::listen(serial_path.into(), baud_rate, telemetry_bus));
+    std::thread::spawn(move || {
+        serial::listen(serial_path.into(), baud_rate, telemetry_bus)
+            .expect("failed to open serial port for listening");
+    });
 
     gui::run(config, gui_telemetry_rx, command_bus);
 

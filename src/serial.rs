@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use bus::{Bus, BusReader};
 use fxhash::FxHashMap;
 use postcard::take_from_bytes_cobs;
@@ -21,14 +21,23 @@ pub fn send_command(
     mut message_bus: BusReader<Command>,
 ) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
-    let mut tty = TTYPort::open(&path)?;
-    tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
     loop {
-        if let Ok(Command::SendCommand(cmd)) = message_bus.try_recv() {
-            tty.write_all(cmd.as_bytes())?;
-        }
+        match TTYPort::open(&path) {
+            Ok(mut tty) => {
+                tty.reconfigure(&|settings| settings.set_baud_rate(baud))
+                    .context("failed to configure TTY")?;
+                loop {
+                    if let Ok(Command::SendCommand(cmd)) = message_bus.try_recv() {
+                        tty.write_all(cmd.as_bytes())?;
+                    }
 
-        thread::sleep(Duration::from_millis(50));
+                    thread::sleep(Duration::from_millis(50));
+                }
+            }
+            _ => {
+                thread::sleep(Duration::from_secs(1));
+            }
+        }
     }
 }
 
@@ -38,7 +47,8 @@ pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> R
     loop {
         match TTYPort::open(&path) {
             Ok(mut tty) => {
-                tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
+                tty.reconfigure(&|settings| settings.set_baud_rate(baud))
+                    .context("failed to configure TTY")?;
                 let mut message_bytes: Vec<u8> = vec![];
                 loop {
                     if let Some(frame) = read_serial(&mut tty, &mut message_bytes) {
