@@ -6,6 +6,10 @@ use tokio::{select, sync::broadcast::Receiver};
 use crate::telemetry::Frame;
 use crate::Command;
 
+/// At some point we'll run out of memory, so flush to disk every now
+/// and then.
+const MAX_FRAMES: usize = 90_000;
+
 pub struct Recorder {
     frames: Vec<Frame>,
 }
@@ -24,16 +28,27 @@ impl Recorder {
             select! {
                 Ok(frame) = message_bus.recv() => {
                     self.frames.push(frame);
+                    if self.frames.len() >= MAX_FRAMES {
+                        match self.export() {
+                            Ok(_) => {
+                                println!("[INFO] Auto-exported data");
+                                self.reset();
+                            }
+                            Err(e) => {
+                                println!("[WARN] Failed to auto-export data: {}", e);
+                            }
+                        }
+                    }
                 }
                 Ok(cmd) = command_bus.recv() => {
                     match cmd {
                         Command::Export => {
-                            if self.export().is_err() {
-                                println!("[WARN] Failed to export data");
+                            if let Err(e) = self.export() {
+                                println!("[WARN] Failed to export data: {}", e);
                             }
                         }
                         Command::Reset => {
-                            self.frames.clear();
+                            self.reset();
                         }
                         Command::Exit => {
                             return;
@@ -43,6 +58,10 @@ impl Recorder {
                 }
             }
         }
+    }
+
+    fn reset(&mut self) {
+        self.frames.clear();
     }
 
     fn export(&self) -> Result<()> {
