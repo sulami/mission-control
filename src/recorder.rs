@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
-use bus::BusReader;
 use csv::Writer;
 use time::{macros::format_description, OffsetDateTime};
-use tokio::time::sleep;
+use tokio::{select, sync::broadcast::Receiver};
 
 use crate::telemetry::Frame;
 use crate::Command;
@@ -18,30 +17,31 @@ impl Recorder {
 
     pub async fn run(
         &mut self,
-        mut message_bus: BusReader<Frame>,
-        mut command_bus: BusReader<Command>,
+        mut message_bus: Receiver<Frame>,
+        mut command_bus: Receiver<Command>,
     ) {
         loop {
-            if let Ok(frame) = message_bus.try_recv() {
-                self.frames.push(frame);
-            }
-            if let Ok(cmd) = command_bus.try_recv() {
-                match cmd {
-                    Command::Export => {
-                        if self.export().is_err() {
-                            println!("[WARN] Failed to export data");
+            select! {
+                Ok(frame) = message_bus.recv() => {
+                    self.frames.push(frame);
+                }
+                Ok(cmd) = command_bus.recv() => {
+                    match cmd {
+                        Command::Export => {
+                            if self.export().is_err() {
+                                println!("[WARN] Failed to export data");
+                            }
                         }
+                        Command::Reset => {
+                            self.frames.clear();
+                        }
+                        Command::Exit => {
+                            return;
+                        }
+                        _ => {}
                     }
-                    Command::Reset => {
-                        self.frames.clear();
-                    }
-                    Command::Exit => {
-                        return;
-                    }
-                    _ => {}
                 }
             }
-            sleep(std::time::Duration::from_millis(100)).await;
         }
     }
 

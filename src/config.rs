@@ -29,7 +29,7 @@ pub struct Serial {
     pub path: String,
 
     /// Serial port baud rate
-    pub baud: usize,
+    pub baud: u32,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

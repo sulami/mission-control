@@ -1,8 +1,8 @@
 use anyhow::Result;
-use bus::{Bus, BusReader};
 use eframe::egui;
 use egui::widgets::plot::LinkedCursorsGroup;
 use time::{Duration, OffsetDateTime};
+use tokio::sync::broadcast::{Receiver, Sender};
 
 mod color;
 mod graph;
@@ -13,7 +13,11 @@ use crate::Command;
 use color::*;
 use graph::Graph;
 
-pub fn run(cfg: Config, telemetry_bus: BusReader<Frame>, command_bus: Bus<Command>) -> Result<()> {
+pub fn run(
+    cfg: Config,
+    telemetry_bus: Receiver<Frame>,
+    command_bus: Sender<Command>,
+) -> Result<()> {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
         // maximized: true,
@@ -34,16 +38,16 @@ struct App {
     config: Config,
     graphs: Vec<Graph>,
     input_text: String,
-    telemetry_bus: BusReader<Frame>,
-    command_bus: Bus<Command>,
+    telemetry_bus: Receiver<Frame>,
+    command_bus: Sender<Command>,
 }
 
 impl App {
     fn new(
         _cc: &eframe::CreationContext<'_>,
         cfg: Config,
-        telemetry_bus: BusReader<Frame>,
-        command_bus: Bus<Command>,
+        telemetry_bus: Receiver<Frame>,
+        command_bus: Sender<Command>,
     ) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
         let now = OffsetDateTime::now_local().expect("failed to get local time");
@@ -77,7 +81,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let now = OffsetDateTime::now_local().unwrap();
 
-        if let Ok(frame) = self.telemetry_bus.try_recv() {
+        while let Ok(frame) = self.telemetry_bus.try_recv() {
             for graph in self.graphs.iter_mut() {
                 graph.add_data(&frame);
             }
@@ -126,7 +130,7 @@ impl eframe::App for App {
             );
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 self.command_bus
-                    .broadcast(Command::SendCommand(self.input_text.clone()));
+                    .send(Command::SendCommand(self.input_text.clone()));
                 self.input_text.clear();
                 response.request_focus();
             }
@@ -151,7 +155,7 @@ impl eframe::App for App {
                                 .fill(egui_color(command.color));
                                 if ui.add(button).clicked() {
                                     self.command_bus
-                                        .broadcast(Command::SendCommand(command.command.clone()));
+                                        .send(Command::SendCommand(command.command.clone()));
                                 };
                             }
                         });
@@ -168,14 +172,14 @@ impl eframe::App for App {
                             ui.set_width(140.);
                             ui.heading("System");
                             if ui.button("Save to disk").clicked() {
-                                self.command_bus.broadcast(Command::Export);
+                                self.command_bus.send(Command::Export);
                             };
 
                             ui.add_space(20.);
 
                             if ui.button("Reset").clicked() {
                                 for graph in &mut self.graphs {
-                                    self.command_bus.broadcast(Command::Reset);
+                                    self.command_bus.send(Command::Reset);
                                     graph.reset();
                                 }
                             };

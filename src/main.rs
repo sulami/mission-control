@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bus::Bus;
 use clap::Parser;
-use tokio::task;
+use tokio::{sync::broadcast, task};
 
 mod config;
 mod gui;
@@ -35,29 +34,27 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let config = config::load_config(&args.config)?;
 
-    let mut telemetry_bus = Bus::<Frame>::new(1024);
-    let recorder_telemetry_rx = telemetry_bus.add_rx();
-    let gui_telemetry_rx = telemetry_bus.add_rx();
+    let (telemetry_bus, recorder_telemetry_rx) = broadcast::channel::<Frame>(128);
+    let gui_telemetry_rx = telemetry_bus.subscribe();
 
-    let mut command_bus = Bus::<Command>::new(16);
-    let command_rx = command_bus.add_rx();
+    let (command_bus, command_rx) = broadcast::channel::<Command>(16);
 
     let mut recorder = Recorder::new();
     task::spawn(async move { recorder.run(recorder_telemetry_rx, command_rx).await });
 
     let baud_rate = config.serial.baud;
-    let command_rx = command_bus.add_rx();
+    let command_rx = command_bus.subscribe();
 
     let serial_path = config.serial.path.clone();
     task::spawn(async move {
-        serial::send_commands(serial_path.into(), baud_rate, command_rx)
+        serial::send_commands(&serial_path, baud_rate, command_rx)
             .await
             .expect("failed to open serial port for sending commands")
     });
 
     let serial_path = config.serial.path.clone();
     task::spawn(async move {
-        serial::listen(serial_path.into(), baud_rate, telemetry_bus)
+        serial::listen(&serial_path, baud_rate, telemetry_bus)
             .await
             .expect("failed to open serial port for listening")
     });
@@ -66,3 +63,12 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
+
+// #[cfg(any(target_os = "ios", target_os = "macos"))]
+// pub fn iossiospeed(fd: RawFd, baud_rate: &libc::speed_t) -> Result<()> {
+//     match unsafe { raw::iossiospeed(fd, baud_rate) } {
+//         Ok(_) => Ok(()),
+//         Err(nix::errno::Errno::ENOTTY) => Ok(()),
+//         Err(e) => Err(e.into()),
+//     }
+// }
