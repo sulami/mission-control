@@ -69,7 +69,7 @@ impl Recorder {
             let mut record = vec![frame
                 .timestamp
                 .format(&format_description!(
-                    "[year]-[month]-[day]T[hour]:[minute]:[second]"
+                    "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]]"
                 ))
                 .unwrap()];
             for data_point in &frame.data_points {
