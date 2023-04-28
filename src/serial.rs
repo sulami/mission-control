@@ -34,54 +34,22 @@ pub fn send_command(
 
 pub fn listen(path: PathBuf, baud_rate: usize, mut message_bus: Bus<Frame>) -> Result<()> {
     let baud = parse_baud_rate(baud_rate)?;
-    let mut read_buf = [0u8; 1024];
-    let mut message_bytes: Vec<u8> = vec![];
 
-    // Loop #1: Trying to open the TTY
     loop {
-        if let Ok(mut tty) = TTYPort::open(&path) {
-            tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
-
-            // Loop #2: Reading from the TTY
-            loop {
-                if let Ok(bytes_read) = tty.read(&mut read_buf) {
-                    message_bytes.extend_from_slice(&read_buf[..bytes_read]);
-
-                    // Loop #3: Parsing the message buffer
-                    loop {
-                        match take_from_bytes_cobs::<FxHashMap<String, f32>>(&mut message_bytes) {
-                            Ok((parsed, rest)) => {
-                                let frame = Frame::new(
-                                    OffsetDateTime::now_local().unwrap(),
-                                    &parsed.into_iter().collect::<Vec<_>>(),
-                                );
-                                message_bus.broadcast(frame);
-                                message_bytes = rest.to_vec();
-                            }
-                            Err(postcard::Error::DeserializeBadEncoding) => {
-                                // Not enough data to get out a COBS frame.
-                                println!("bad encoding");
-                                break;
-                            }
-                            Err(postcard::Error::DeserializeUnexpectedEnd) => {
-                                message_bytes.clear();
-                                break;
-                            }
-                            Err(_) => {
-                                println!("[WARN] Got malformed package, ignoring",);
-                                // message_bytes.clear();
-                                break;
-                            }
-                        }
+        match TTYPort::open(&path) {
+            Ok(mut tty) => {
+                tty.reconfigure(&|settings| settings.set_baud_rate(baud))?;
+                let mut message_bytes: Vec<u8> = vec![];
+                loop {
+                    if let Some(frame) = read_serial(&mut tty, &mut message_bytes) {
+                        message_bus.broadcast(frame);
                     }
+                    thread::sleep(Duration::from_millis(5));
                 }
-
-                thread::sleep(Duration::from_millis(5));
             }
-        } else {
-            // Failed to open TTY.
-            thread::sleep(Duration::from_secs(1));
-            continue;
+            _ => {
+                thread::sleep(Duration::from_secs(1));
+            }
         }
     }
 }
@@ -100,5 +68,66 @@ fn parse_baud_rate(b: usize) -> Result<BaudRate> {
         57600 => Ok(Baud57600),
         115200 => Ok(Baud115200),
         _ => Err(anyhow!("unsupported baud rate")),
+    }
+}
+
+/// Reads from the serial port and tries to parse a COBS-encoded frame.
+fn read_serial(tty: &mut impl Read, message_bytes: &mut Vec<u8>) -> Option<Frame> {
+    let mut buf = [0u8; 1024];
+
+    if let Ok(n) = tty.read(&mut buf) {
+        message_bytes.extend_from_slice(&buf[..n]);
+        match take_from_bytes_cobs::<FxHashMap<String, f32>>(message_bytes) {
+            Ok((parsed, rest)) => {
+                let frame = Frame::new(
+                    OffsetDateTime::now_utc(),
+                    &parsed.into_iter().collect::<Vec<_>>(),
+                );
+                *message_bytes = rest.to_vec();
+                return Some(frame);
+            }
+            Err(postcard::Error::DeserializeBadEncoding) => {
+                return None;
+            }
+            Err(postcard::Error::DeserializeUnexpectedEnd) => {
+                // NB We hit these because zero bytes are the
+                // end-of-package markers in COBS, but serial devices
+                // spit out zeroes if there's no actual data. Just
+                // skip over the zeroes.
+                match message_bytes.iter().position(|&b| b != 0) {
+                    Some(idx) => {
+                        message_bytes.drain(..idx);
+                    }
+                    None => {
+                        message_bytes.clear();
+                    }
+                }
+                return None;
+            }
+            Err(_) => {
+                return None;
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use postcard::to_stdvec_cobs;
+
+    #[test]
+    fn test_read_serial_reads_a_frame() {
+        let mut map = FxHashMap::default();
+        map.insert("foo".to_string(), 1.0f32);
+        map.insert("bar".to_string(), 2.0);
+        map.insert("baz".to_string(), 3.0);
+
+        let bytes = to_stdvec_cobs(&map).unwrap();
+        let result = read_serial(&mut bytes.as_slice(), &mut vec![]);
+        assert!(result.is_some());
     }
 }

@@ -11,7 +11,7 @@ csv = "1.2.1"
 eframe = { version = "0.21.3", features = ["dark-light"] }
 egui = "0.21.0"
 fxhash = "0.2.1"
-postcard = "1.0.4"
+postcard = { version = "1.0.4", features = ["use-std"] }
 serde = "1.0.160"
 serial-core = "0.4.0"
 serial-unix = "0.4.0"
