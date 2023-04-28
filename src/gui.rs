@@ -105,6 +105,7 @@ impl eframe::App for App {
                         .strong(),
                 );
 
+                ui.separator();
                 ui.label(format!(
                     "CLT: {}",
                     now.format(
@@ -116,8 +117,10 @@ impl eframe::App for App {
                     )
                     .unwrap()
                 ));
+                ui.separator();
                 ui.label(format!("GCT: {:.0}", now - self.start_time));
                 if data_stale {
+                    ui.separator();
                     ui.label(format!("LDT: {:.2}", data_age));
                 }
             });
@@ -202,8 +205,8 @@ impl eframe::App for App {
 
         egui::containers::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Telemetry");
-            // TODO expand the scroll area to fill the available space
             egui::ScrollArea::new([true, true])
+                .auto_shrink([false, false])
                 .hscroll(false)
                 .show(ui, |ui| {
                     ui.with_layout(
