@@ -132,8 +132,10 @@ impl eframe::App for App {
                     .desired_width(ui.available_width()),
             );
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                self.command_bus
-                    .send(Command::SendCommand(self.input_text.clone()));
+                send_command(
+                    Command::SendCommand(self.input_text.clone()),
+                    &self.command_bus,
+                );
                 self.input_text.clear();
                 response.request_focus();
             }
@@ -157,8 +159,10 @@ impl eframe::App for App {
                                 )
                                 .fill(egui_color(command.color));
                                 if ui.add(button).clicked() {
-                                    self.command_bus
-                                        .send(Command::SendCommand(command.command.clone()));
+                                    send_command(
+                                        Command::SendCommand(command.command.clone()),
+                                        &self.command_bus,
+                                    );
                                 };
                             }
                         });
@@ -175,14 +179,14 @@ impl eframe::App for App {
                             ui.set_width(140.);
                             ui.heading("System");
                             if ui.button("Save to disk").clicked() {
-                                self.command_bus.send(Command::Export);
+                                send_command(Command::Export, &self.command_bus);
                             };
 
                             ui.add_space(20.);
 
                             if ui.button("Reset").clicked() {
                                 for graph in &mut self.graphs {
-                                    self.command_bus.send(Command::Reset);
+                                    send_command(Command::Reset, &self.command_bus);
                                     graph.reset();
                                 }
                             };
@@ -221,5 +225,11 @@ impl eframe::App for App {
         });
 
         ctx.request_repaint_after(std::time::Duration::from_millis(10));
+    }
+}
+
+fn send_command(cmd: Command, bus: &Sender<Command>) {
+    if let Err(e) = bus.send(cmd) {
+        eprintln!("[WARN] Error sending command: {}", e);
     }
 }
