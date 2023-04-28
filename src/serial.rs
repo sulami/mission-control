@@ -4,7 +4,6 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use async_std::task;
 use bus::{Bus, BusReader};
 use fxhash::FxHashMap;
 use postcard::take_from_bytes_cobs;
@@ -12,6 +11,7 @@ use serial_core::BaudRate::{self, *};
 use serial_core::SerialPort;
 use serial_unix::TTYPort;
 use time::OffsetDateTime;
+use tokio::time::sleep;
 
 use crate::telemetry::Frame;
 use crate::Command;
@@ -35,7 +35,7 @@ pub async fn send_commands(
                 })
             }
             _ => {
-                task::sleep(Duration::from_secs(1)).await;
+                sleep(Duration::from_secs(1)).await;
             }
         }
     }

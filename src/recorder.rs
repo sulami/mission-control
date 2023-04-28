@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use async_std::task;
 use bus::BusReader;
 use csv::Writer;
 use time::{macros::format_description, OffsetDateTime};
+use tokio::time::sleep;
 
 use crate::telemetry::Frame;
 use crate::Command;
@@ -41,7 +41,7 @@ impl Recorder {
                     _ => {}
                 }
             }
-            task::sleep(std::time::Duration::from_millis(100)).await;
+            sleep(std::time::Duration::from_millis(100)).await;
         }
     }
 

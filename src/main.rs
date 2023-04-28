@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use async_std::task;
 use bus::Bus;
 use clap::Parser;
+use tokio::task;
 
 mod config;
 mod gui;
@@ -30,7 +30,7 @@ pub enum Command {
     Exit,
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
     let config = config::load_config(&args.config)?;
