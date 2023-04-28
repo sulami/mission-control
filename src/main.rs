@@ -64,6 +64,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+// Use this patch for serial-rs to support fake serial ports on macOS
 // #[cfg(any(target_os = "ios", target_os = "macos"))]
 // pub fn iossiospeed(fd: RawFd, baud_rate: &libc::speed_t) -> Result<()> {
 //     match unsafe { raw::iossiospeed(fd, baud_rate) } {
