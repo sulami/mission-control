@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use embedded_imu::telemetry::TelemetryReporter;
+use embedded_imu::{telemetry::TelemetryReporter, transport::encode};
 use random::Source;
 use serial_core::BaudRate::*;
 use serial_core::SerialPort;
@@ -29,9 +29,10 @@ fn main() {
         assert!(reporter.record("sin", (Instant::now() - start).as_secs_f32().sin()));
         assert!(reporter.record("cos", (Instant::now() - start).as_secs_f32().cos()));
         assert!(reporter.record("tan", (Instant::now() - start).as_secs_f32().tan()));
-        let mut report = [0u8; 1024];
-        assert!(reporter.report(&mut report));
-        let _ = tty.write(&report).expect("failed to write telemetry");
+        let report = reporter.report();
+        let mut buf = [0u8; 1024];
+        encode(&report, &mut buf);
+        let _ = tty.write(&buf).expect("failed to write telemetry");
         let _ = tty.flush();
         counter += 1;
         thread::sleep(Duration::from_millis(50));
