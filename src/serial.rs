@@ -1,8 +1,9 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use fxhash::FxHashMap;
+use embedded_imu::transport;
 use postcard::take_from_bytes_cobs;
+use serde::Deserialize;
 use time::OffsetDateTime;
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
@@ -40,10 +41,27 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> R
             Ok(mut tty) => {
                 let mut message_bytes: Vec<u8> = vec![];
                 loop {
-                    if let Some(frame) = read_serial(&mut tty, &mut message_bytes).await {
-                        if message_bus.send(frame).is_err() {
-                            println!("[WARN] Telemetry buffer saturated, losing data")
+                    match read_serial(&mut tty, &mut message_bytes).await {
+                        Some(SerialMessage::Telemetry(frame)) => {
+                            let internal_frame = Frame::new(
+                                OffsetDateTime::now_utc(),
+                                &frame
+                                    .into_iter()
+                                    .filter_map(|(s, v)| {
+                                        if let transport::telemetry::DataPoint::F32(f) = v {
+                                            Some((s, f))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>(),
+                            );
+                            if message_bus.send(internal_frame).is_err() {
+                                println!("[WARN] Telemetry buffer saturated, losing data")
+                            }
                         }
+                        Some(SerialMessage::LogMessage(log)) => {}
+                        None => {}
                     }
                 }
             }
@@ -54,26 +72,33 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> R
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+enum SerialMessage {
+    Telemetry(transport::telemetry::TelemetryFrame),
+    LogMessage(transport::log::Log),
+}
+
 /// Reads from the serial port and tries to parse a COBS-encoded frame.
 async fn read_serial(
     tty: &mut (impl AsyncRead + std::marker::Unpin),
     message_bytes: &mut Vec<u8>,
-) -> Option<Frame> {
+) -> Option<SerialMessage> {
     let mut buf = [0u8; 1024];
 
     if let Ok(n) = tty.read(&mut buf).await {
         message_bytes.extend_from_slice(&buf[..n]);
-        match take_from_bytes_cobs::<FxHashMap<String, f32>>(message_bytes) {
-            Ok((parsed, rest)) => {
-                let frame = Frame::new(
-                    OffsetDateTime::now_utc(),
-                    &parsed.into_iter().collect::<Vec<_>>(),
-                );
+        match take_from_bytes_cobs::<SerialMessage>(message_bytes) {
+            Ok((SerialMessage::Telemetry(frame), rest)) => {
                 *message_bytes = rest.to_vec();
-                return Some(frame);
+                return Some(SerialMessage::Telemetry(frame));
+            }
+            Ok((SerialMessage::LogMessage(log), rest)) => {
+                *message_bytes = rest.to_vec();
+                return Some(SerialMessage::LogMessage(log));
             }
             Err(postcard::Error::DeserializeBadEncoding) => {
-                return None;
+                println!("[WARN] Received some bad data, skipping");
+                message_bytes.clear();
             }
             Err(postcard::Error::DeserializeUnexpectedEnd) => {
                 // NB We hit these because zero bytes are the
@@ -88,13 +113,9 @@ async fn read_serial(
                         message_bytes.clear();
                     }
                 }
-                return None;
             }
-            Err(_) => {
-                return None;
-            }
+            Err(_) => {}
         }
     }
-
     None
 }
