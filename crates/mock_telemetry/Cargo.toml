@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.71"
-embedded-imu = { path = "/Users/sulami/src/embedded-imu", features = [ "std" ] }
+embedded-imu = { path = "/Users/sulami/src/embedded-imu" }
 random = "0.14.0"
 serde = "1.0.160"
 serial-core = "0.4.0"

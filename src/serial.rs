@@ -3,7 +3,6 @@ use std::time::Duration;
 use anyhow::Result;
 use embedded_imu::transport;
 use postcard::take_from_bytes_cobs;
-use serde::Deserialize;
 use time::OffsetDateTime;
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
@@ -42,7 +41,7 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> R
                 let mut message_bytes: Vec<u8> = vec![];
                 loop {
                     match read_serial(&mut tty, &mut message_bytes).await {
-                        Some(SerialMessage::Telemetry(frame)) => {
+                        Some(transport::Package::Telemetry(frame)) => {
                             let internal_frame = Frame::new(
                                 OffsetDateTime::now_utc(),
                                 &frame
@@ -60,7 +59,7 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> R
                                 println!("[WARN] Telemetry buffer saturated, losing data")
                             }
                         }
-                        Some(SerialMessage::LogMessage(log)) => {}
+                        Some(transport::Package::Log(_log)) => {}
                         None => {}
                     }
                 }
@@ -72,29 +71,19 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> R
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-enum SerialMessage {
-    Telemetry(transport::telemetry::TelemetryFrame),
-    LogMessage(transport::log::Log),
-}
-
 /// Reads from the serial port and tries to parse a COBS-encoded frame.
 async fn read_serial(
     tty: &mut (impl AsyncRead + std::marker::Unpin),
     message_bytes: &mut Vec<u8>,
-) -> Option<SerialMessage> {
+) -> Option<transport::Package> {
     let mut buf = [0u8; 1024];
 
     if let Ok(n) = tty.read(&mut buf).await {
         message_bytes.extend_from_slice(&buf[..n]);
-        match take_from_bytes_cobs::<SerialMessage>(message_bytes) {
-            Ok((SerialMessage::Telemetry(frame), rest)) => {
+        match take_from_bytes_cobs::<transport::Package>(message_bytes) {
+            Ok((package, rest)) => {
                 *message_bytes = rest.to_vec();
-                return Some(SerialMessage::Telemetry(frame));
-            }
-            Ok((SerialMessage::LogMessage(log), rest)) => {
-                *message_bytes = rest.to_vec();
-                return Some(SerialMessage::LogMessage(log));
+                return Some(package);
             }
             Err(postcard::Error::DeserializeBadEncoding) => {
                 println!("[WARN] Received some bad data, skipping");
