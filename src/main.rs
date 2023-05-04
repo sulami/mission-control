@@ -22,6 +22,13 @@ struct Args {
 }
 
 #[derive(Clone, Debug)]
+pub enum Message {
+    Command(Command),
+    Telemetry(Frame),
+    Log,
+}
+
+#[derive(Clone, Debug)]
 pub enum Command {
     SendCommand(String),
     Export,
@@ -34,32 +41,31 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let config = config::load_config(&args.config)?;
 
-    let (telemetry_bus, recorder_telemetry_rx) = broadcast::channel::<Frame>(128);
-    let gui_telemetry_rx = telemetry_bus.subscribe();
-
-    let (command_bus, command_rx) = broadcast::channel::<Command>(16);
+    let (serial_tx, recorder_rx) = broadcast::channel::<Message>(128);
+    let gui_tx = serial_tx.clone();
+    let gui_rx = serial_tx.subscribe();
+    let serial_rx = serial_tx.subscribe();
 
     let mut recorder = Recorder::new();
-    task::spawn(async move { recorder.run(recorder_telemetry_rx, command_rx).await });
+    task::spawn(async move { recorder.run(recorder_rx).await });
 
     let baud_rate = config.serial.baud;
-    let command_rx = command_bus.subscribe();
 
     let serial_path = config.serial.path.clone();
     task::spawn(async move {
-        serial::send_commands(&serial_path, baud_rate, command_rx)
+        serial::send_commands(&serial_path, baud_rate, serial_rx)
             .await
             .expect("failed to open serial port for sending commands")
     });
 
     let serial_path = config.serial.path.clone();
     task::spawn(async move {
-        serial::listen(&serial_path, baud_rate, telemetry_bus)
+        serial::listen(&serial_path, baud_rate, serial_tx)
             .await
             .expect("failed to open serial port for listening")
     });
 
-    gui::run(config, gui_telemetry_rx, command_bus)?;
+    gui::run(config, gui_rx, gui_tx)?;
 
     Ok(())
 }

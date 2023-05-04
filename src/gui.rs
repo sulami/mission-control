@@ -7,17 +7,11 @@ use tokio::sync::broadcast::{Receiver, Sender};
 mod color;
 mod graph;
 
-use crate::config::Config;
-use crate::telemetry::Frame;
-use crate::Command;
+use crate::{config::Config, Command, Message};
 use color::*;
 use graph::Graph;
 
-pub fn run(
-    cfg: Config,
-    telemetry_bus: Receiver<Frame>,
-    command_bus: Sender<Command>,
-) -> Result<()> {
+pub fn run(cfg: Config, rx: Receiver<Message>, tx: Sender<Message>) -> Result<()> {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
         // maximized: true,
@@ -26,7 +20,7 @@ pub fn run(
     eframe::run_native(
         "Mission Control",
         native_options,
-        Box::new(|cc| Box::new(App::new(cc, cfg, telemetry_bus, command_bus))),
+        Box::new(|cc| Box::new(App::new(cc, cfg, rx, tx))),
     )
     .map_err(|e| anyhow::anyhow!("Failed to run gui: {}", e))?;
     Ok(())
@@ -38,16 +32,16 @@ struct App {
     config: Config,
     graphs: Vec<Graph>,
     input_text: String,
-    telemetry_bus: Receiver<Frame>,
-    command_bus: Sender<Command>,
+    rx: Receiver<Message>,
+    tx: Sender<Message>,
 }
 
 impl App {
     fn new(
         _cc: &eframe::CreationContext<'_>,
         cfg: Config,
-        telemetry_bus: Receiver<Frame>,
-        command_bus: Sender<Command>,
+        rx: Receiver<Message>,
+        tx: Sender<Message>,
     ) -> Self {
         let cursor_group = LinkedCursorsGroup::new(true, false);
         let now = OffsetDateTime::now_local().expect("failed to get local time");
@@ -71,8 +65,8 @@ impl App {
                 })
                 .collect(),
             input_text: String::new(),
-            telemetry_bus,
-            command_bus,
+            rx,
+            tx,
         }
     }
 }
@@ -81,11 +75,13 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let now = OffsetDateTime::now_local().unwrap();
 
-        while let Ok(frame) = self.telemetry_bus.try_recv() {
-            for graph in self.graphs.iter_mut() {
-                graph.add_data(&frame);
+        while let Ok(msg) = self.rx.try_recv() {
+            if let Message::Telemetry(frame) = msg {
+                for graph in self.graphs.iter_mut() {
+                    graph.add_data(&frame);
+                }
+                self.last_data = now;
             }
-            self.last_data = now;
         }
 
         egui::containers::TopBottomPanel::top("Status").show(ctx, |ui| {
@@ -132,10 +128,7 @@ impl eframe::App for App {
                     .desired_width(ui.available_width()),
             );
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                send_command(
-                    Command::SendCommand(self.input_text.clone()),
-                    &self.command_bus,
-                );
+                send_command(Command::SendCommand(self.input_text.clone()), &self.tx);
                 self.input_text.clear();
                 response.request_focus();
             }
@@ -161,7 +154,7 @@ impl eframe::App for App {
                                 if ui.add(button).clicked() {
                                     send_command(
                                         Command::SendCommand(command.command.clone()),
-                                        &self.command_bus,
+                                        &self.tx,
                                     );
                                 };
                             }
@@ -179,14 +172,14 @@ impl eframe::App for App {
                             ui.set_width(140.);
                             ui.heading("System");
                             if ui.button("Save to disk").clicked() {
-                                send_command(Command::Export, &self.command_bus);
+                                send_command(Command::Export, &self.tx);
                             };
 
                             ui.add_space(20.);
 
                             if ui.button("Reset").clicked() {
                                 for graph in &mut self.graphs {
-                                    send_command(Command::Reset, &self.command_bus);
+                                    send_command(Command::Reset, &self.tx);
                                     graph.reset();
                                 }
                             };
@@ -228,8 +221,8 @@ impl eframe::App for App {
     }
 }
 
-fn send_command(cmd: Command, bus: &Sender<Command>) {
-    if let Err(e) = bus.send(cmd) {
+fn send_command(cmd: Command, bus: &Sender<Message>) {
+    if let Err(e) = bus.send(Message::Command(cmd)) {
         eprintln!("[WARN] Error sending command: {}", e);
     }
 }

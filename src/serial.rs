@@ -11,18 +11,17 @@ use tokio::{
 };
 use tokio_serial::SerialPortBuilderExt;
 
-use crate::telemetry::Frame;
-use crate::Command;
+use crate::{telemetry::Frame, Command, Message};
 
 pub async fn send_commands(
     path: &str,
     baud_rate: u32,
-    mut message_bus: Receiver<Command>,
+    mut message_bus: Receiver<Message>,
 ) -> Result<()> {
     loop {
         match tokio_serial::new(path, baud_rate).open() {
             Ok(mut tty) => {
-                if let Ok(Command::SendCommand(cmd)) = message_bus.recv().await {
+                if let Ok(Message::Command(Command::SendCommand(cmd))) = message_bus.recv().await {
                     println!("[INFO] Sending command: {cmd}");
                     tty.write_all(cmd.as_bytes()).unwrap();
                 }
@@ -34,7 +33,7 @@ pub async fn send_commands(
     }
 }
 
-pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> Result<()> {
+pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) -> Result<()> {
     loop {
         match tokio_serial::new(path, baud_rate).open_native_async() {
             Ok(mut tty) => {
@@ -55,7 +54,10 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Frame>) -> R
                                     })
                                     .collect::<Vec<_>>(),
                             );
-                            if message_bus.send(internal_frame).is_err() {
+                            if message_bus
+                                .send(Message::Telemetry(internal_frame))
+                                .is_err()
+                            {
                                 println!("[WARN] Telemetry buffer saturated, losing data")
                             }
                         }

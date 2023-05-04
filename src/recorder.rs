@@ -1,10 +1,9 @@
 use anyhow::{Context, Result};
 use csv::Writer;
 use time::{macros::format_description, OffsetDateTime};
-use tokio::{select, sync::broadcast::Receiver};
+use tokio::sync::broadcast::Receiver;
 
-use crate::telemetry::Frame;
-use crate::Command;
+use crate::{telemetry::Frame, Command, Message};
 
 /// At some point we'll run out of memory, so flush to disk every now
 /// and then.
@@ -19,29 +18,25 @@ impl Recorder {
         Self { frames: vec![] }
     }
 
-    pub async fn run(
-        &mut self,
-        mut message_bus: Receiver<Frame>,
-        mut command_bus: Receiver<Command>,
-    ) {
+    pub async fn run(&mut self, mut message_bus: Receiver<Message>) {
         loop {
-            select! {
-                Ok(frame) = message_bus.recv() => {
-                    self.frames.push(frame);
-                    if self.frames.len() >= MAX_FRAMES {
-                        match self.export() {
-                            Ok(_) => {
-                                println!("[INFO] Auto-exported data");
-                                self.reset();
-                            }
-                            Err(e) => {
-                                println!("[WARN] Failed to auto-export data: {}", e);
+            if let Ok(msg) = message_bus.recv().await {
+                match msg {
+                    Message::Telemetry(frame) => {
+                        self.frames.push(frame);
+                        if self.frames.len() >= MAX_FRAMES {
+                            match self.export() {
+                                Ok(_) => {
+                                    println!("[INFO] Auto-exported data");
+                                    self.reset();
+                                }
+                                Err(e) => {
+                                    println!("[WARN] Failed to auto-export data: {}", e);
+                                }
                             }
                         }
                     }
-                }
-                Ok(cmd) = command_bus.recv() => {
-                    match cmd {
+                    Message::Command(cmd) => match cmd {
                         Command::Export => {
                             if let Err(e) = self.export() {
                                 println!("[WARN] Failed to export data: {}", e);
@@ -54,7 +49,8 @@ impl Recorder {
                             return;
                         }
                         _ => {}
-                    }
+                    },
+                    _ => {}
                 }
             }
         }
