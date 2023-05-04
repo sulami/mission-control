@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use csv::Writer;
 use time::{macros::format_description, OffsetDateTime};
-use tokio::sync::broadcast::Receiver;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::{telemetry::Frame, Command, Message};
 
@@ -18,20 +18,24 @@ impl Recorder {
         Self { frames: vec![] }
     }
 
-    pub async fn run(&mut self, mut message_bus: Receiver<Message>) {
+    pub async fn run(&mut self, mut rx: Receiver<Message>, tx: Sender<Message>) {
         loop {
-            if let Ok(msg) = message_bus.recv().await {
+            if let Ok(msg) = rx.recv().await {
                 match msg {
                     Message::Telemetry(frame) => {
                         self.frames.push(frame);
                         if self.frames.len() >= MAX_FRAMES {
                             match self.export() {
                                 Ok(_) => {
-                                    println!("[INFO] Auto-exported data");
+                                    let _ = tx.send(Message::Log(
+                                        "[SYSTEM] Auto-exported data".to_string(),
+                                    ));
                                     self.reset();
                                 }
                                 Err(e) => {
-                                    println!("[WARN] Failed to auto-export data: {}", e);
+                                    let _ = tx.send(Message::Log(format!(
+                                        "[SYSTEM] Failed to auto-export data: {e}"
+                                    )));
                                 }
                             }
                         }
@@ -39,7 +43,9 @@ impl Recorder {
                     Message::Command(cmd) => match cmd {
                         Command::Export => {
                             if let Err(e) = self.export() {
-                                println!("[WARN] Failed to export data: {}", e);
+                                let _ = tx.send(Message::Log(format!(
+                                    "[SYSTEM] Failed to export data: {e}"
+                                )));
                             }
                         }
                         Command::Reset => {
@@ -50,7 +56,9 @@ impl Recorder {
                         }
                         _ => {}
                     },
-                    _ => {}
+                    Message::Log(log) => {
+                        println!("{log}");
+                    }
                 }
             }
         }

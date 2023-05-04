@@ -223,6 +223,6 @@ impl eframe::App for App {
 
 fn send_command(cmd: Command, bus: &Sender<Message>) {
     if let Err(e) = bus.send(Message::Command(cmd)) {
-        eprintln!("[WARN] Error sending command: {}", e);
+        eprintln!("[SYSTEM] Error sending command: {}", e);
     }
 }

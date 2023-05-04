@@ -16,13 +16,14 @@ use crate::{telemetry::Frame, Command, Message};
 pub async fn send_commands(
     path: &str,
     baud_rate: u32,
-    mut message_bus: Receiver<Message>,
+    mut rx: Receiver<Message>,
+    tx: Sender<Message>,
 ) -> Result<()> {
     loop {
         match tokio_serial::new(path, baud_rate).open() {
             Ok(mut tty) => {
-                if let Ok(Message::Command(Command::SendCommand(cmd))) = message_bus.recv().await {
-                    println!("[INFO] Sending command: {cmd}");
+                if let Ok(Message::Command(Command::SendCommand(cmd))) = rx.recv().await {
+                    let _ = tx.send(Message::Log(format!("[SYSTEM] Sending command: {cmd}")));
                     tty.write_all(cmd.as_bytes()).unwrap();
                 }
             }
@@ -58,10 +59,14 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) ->
                                 .send(Message::Telemetry(internal_frame))
                                 .is_err()
                             {
-                                println!("[WARN] Telemetry buffer saturated, losing data")
+                                println!("[WARN] Message bus saturated, losing data")
                             }
                         }
-                        Some(transport::Package::Log(_log)) => {}
+                        Some(transport::Package::Log(log)) => {
+                            if message_bus.send(Message::Log(format!("{log}"))).is_err() {
+                                println!("[WARN] Message bus saturated, losing data")
+                            }
+                        }
                         None => {}
                     }
                 }
@@ -88,7 +93,6 @@ async fn read_serial(
                 return Some(package);
             }
             Err(postcard::Error::DeserializeBadEncoding) => {
-                println!("[WARN] Received some bad data, skipping");
                 message_bytes.clear();
             }
             Err(postcard::Error::DeserializeUnexpectedEnd) => {
