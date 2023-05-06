@@ -20,42 +20,97 @@ name = "Abort"
 command = "abort"
 color = "Red"
 
-[[graphs.Voltage.plots]]
-name = "Voltage"
-source_name = "volt"
-color = "Orange"
-
-[[graphs.Accelerometer.plots]]
-name = "X"
-source_name = "gx"
-color = "Red"
-
-[[graphs.Accelerometer.plots]]
-name = "Y"
-source_name = "gy"
-color = "Green"
-
-[[graphs.Accelerometer.plots]]
-name = "Z"
-source_name = "gz"
-color = "Yellow"
-
 [[graphs.VOT.plots]]
 name = "VOT"
 source_name = "vot"
 color = "Blue"
 
-[[graphs.Math.plots]]
-name = "Sine"
-source_name = "sin"
+[[graphs.Gyroscope.plots]]
+name = "gX"
+source_name = "gx"
 color = "Red"
 
-[[graphs.Math.plots]]
-name = "Cosine"
-source_name = "cos"
+[[graphs.Gyroscope.plots]]
+name = "gY"
+source_name = "gy"
+color = "Green"
+
+[[graphs.Gyroscope.plots]]
+name = "gZ"
+source_name = "gz"
+color = "Yellow"
+
+[[graphs.Accelerometer.plots]]
+name = "raw aX"
+source_name = "ax"
+color = "Red"
+
+[[graphs.Accelerometer.plots]]
+name = "aY"
+source_name = "ay"
+color = "Green"
+
+[[graphs.Accelerometer.plots]]
+name = "aZ"
+source_name = "az"
+color = "Yellow"
+
+[[graphs.HPAccelerometer.plots]]
+name = "high aX"
+source_name = "hpax"
+color = "Red"
+
+[[graphs.HPAccelerometer.plots]]
+name = "aY"
+source_name = "hpay"
+color = "Green"
+
+[[graphs.HPAccelerometer.plots]]
+name = "aZ"
+source_name = "hpaz"
+color = "Yellow"
+
+[[graphs.LPAccelerometer.plots]]
+name = "low aX"
+source_name = "lpax"
+color = "Red"
+
+[[graphs.LPAccelerometer.plots]]
+name = "aY"
+source_name = "lpay"
+color = "Green"
+
+[[graphs.LPAccelerometer.plots]]
+name = "aZ"
+source_name = "lpaz"
+color = "Yellow"
+
+[[graphs.Kalman.plots]]
+name = "Rot"
+source_name = "estrot"
+color = "Red"
+
+[[graphs.Kalman.plots]]
+name = "Pos"
+source_name = "estpos"
 color = "Blue"
 
-[[graphs.Counter.plots]]
-name = "Frame #"
-source_name = "ctr"
+[[graphs.Covariance.plots]]
+name = "11"
+source_name = "cov11"
+color = "Red"
+
+[[graphs.Covariance.plots]]
+name = "12"
+source_name = "cov12"
+color = "Blue"
+
+[[graphs.Covariance.plots]]
+name = "21"
+source_name = "cov21"
 color = "Green"
+
+[[graphs.Covariance.plots]]
+name = "22"
+source_name = "cov22"
+color = "Yellow"

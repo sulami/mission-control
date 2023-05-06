@@ -11,6 +11,9 @@ use crate::{config::Config, Command, Message};
 use color::*;
 use graph::Graph;
 
+// TODO: Add a pause button for graph updates. I guess just drop
+// telemetry on the floor.
+
 pub fn run(cfg: Config, rx: Receiver<Message>, tx: Sender<Message>) -> Result<()> {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
@@ -217,7 +220,7 @@ impl eframe::App for App {
                 })
         });
 
-        ctx.request_repaint_after(std::time::Duration::from_millis(10));
+        ctx.request_repaint_after(std::time::Duration::from_millis(20));
     }
 }
 
