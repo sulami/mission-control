@@ -6,19 +6,44 @@ path = "/dev/ttys005"
 baud = 9600
 
 [[commands]]
-name = "Power on check"
-command = "pow"
+name = "Setpoint +"
+command = "s+"
 color = "Blue"
 
 [[commands]]
-name = "Lift-off"
-command = "liftoff"
+name = "Setpoint -"
+command = "s-"
+color = "Blue"
+
+[[commands]]
+name = "P Gain +"
+command = "p+"
 color = "Orange"
 
 [[commands]]
-name = "Abort"
-command = "abort"
-color = "Red"
+name = "P Gain -"
+command = "p-"
+color = "Orange"
+
+[[commands]]
+name = "I Gain +"
+command = "i+"
+color = "Green"
+
+[[commands]]
+name = "I Gain -"
+command = "i-"
+color = "Green"
+
+[[commands]]
+name = "D Gain +"
+command = "d+"
+color = "Yellow"
+
+[[commands]]
+name = "D Gain -"
+command = "d-"
+color = "Yellow"
 
 [[graphs.VOT.plots]]
 name = "VOT"
@@ -114,3 +139,38 @@ color = "Green"
 name = "22"
 source_name = "cov22"
 color = "Yellow"
+
+[[graphs.PIDGains.plots]]
+name = "P"
+source_name = "pgain"
+color = "Red"
+
+[[graphs.PIDGains.plots]]
+name = "I"
+source_name = "igain"
+color = "Blue"
+
+[[graphs.PIDGains.plots]]
+name = "D"
+source_name = "dgain"
+color = "Green"
+
+[[graphs.Control.plots]]
+name = "Setpoint"
+source_name = "set"
+color = "Blue"
+
+[[graphs.Control.plots]]
+name = "Position"
+source_name = "estpos"
+color = "Red"
+
+[[graphs.Control.plots]]
+name = "Steady state error"
+source_name = "sse"
+color = "Yellow"
+
+[[graphs.Control.plots]]
+name = "Control"
+source_name = "ctrl"
+color = "Green"
