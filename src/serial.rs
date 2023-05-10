@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use embedded_imu::transport;
 use postcard::take_from_bytes_cobs;
+use postcard_telemetry::transport;
 use time::OffsetDateTime;
 use tokio::{
     io::{AsyncRead, AsyncReadExt},

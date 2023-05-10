@@ -11,9 +11,9 @@ clap = { version = "4.2.4", features = ["derive"] }
 csv = "1.2.1"
 eframe = { version = "0.21.3", features = ["dark-light"] }
 egui = "0.21.0"
-embedded-imu = { path = "/Users/sulami/src/embedded-imu", features = [ "std" ] }
 fxhash = "0.2.1"
 postcard = { version = "1.0.4", features = ["use-std"] }
+postcard-telemetry = { git = "https://github.com/sulami/postcard-telemetry", features = [ "std" ] }
 serde = "1.0.160"
 time = { version = "0.3.20", features = ["local-offset", "formatting", "macros"] }
 tokio = { version = "1.28.0", features = ["full"] }
