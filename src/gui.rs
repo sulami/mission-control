@@ -11,9 +11,6 @@ use crate::{config::Config, Command, Message};
 use color::*;
 use graph::Graph;
 
-// TODO: Add a pause button for graph updates. I guess just drop
-// telemetry on the floor.
-
 pub fn run(cfg: Config, rx: Receiver<Message>, tx: Sender<Message>) -> Result<()> {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024., 768.)),
@@ -55,9 +52,9 @@ impl App {
             graphs: cfg
                 .graphs
                 .iter()
-                .map(|(name, g)| {
+                .map(|g| {
                     Graph::new(
-                        name,
+                        &g.name,
                         &g.plots
                             .iter()
                             .map(|p| (p.name.clone(), p.source_name.clone(), p.color))

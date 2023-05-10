@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -17,7 +16,7 @@ pub struct Config {
     pub serial: Serial,
 
     /// Telemetry data to plot
-    pub graphs: HashMap<String, Graph>,
+    pub graphs: Vec<Graph>,
 
     /// Preset commands
     pub commands: Vec<Command>,
@@ -34,6 +33,7 @@ pub struct Serial {
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Graph {
+    pub name: String,
     pub plots: Vec<Plot>,
 }
 

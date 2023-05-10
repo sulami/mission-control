@@ -1,3 +1,5 @@
+# mode: conf-toml
+
 data_timeout = 1
 window_size = 10
 
@@ -45,132 +47,73 @@ name = "D Gain -"
 command = "d-"
 color = "Yellow"
 
-[[graphs.VOT.plots]]
+[[graphs]]
 name = "VOT"
-source_name = "vot"
-color = "Blue"
+plots = [
+    { name = "VOT", source_name = "vot", color = "Blue" },
+]
 
-[[graphs.Gyroscope.plots]]
-name = "gX"
-source_name = "gx"
-color = "Red"
+[[graphs]]
+name = "Kalman estimate"
+plots = [
+    { name = "Rot", source_name = "estrot", color = "Red" },
+    { name = "Pos", source_name = "estpos", color = "Blue" },
+]
 
-[[graphs.Gyroscope.plots]]
-name = "gY"
-source_name = "gy"
-color = "Green"
+[[graphs]]
+name = "Kalman covariance"
+plots = [
+    { name = "11", source_name = "cov11", color = "Red" },
+    { name = "12", source_name = "cov12", color = "Blue" },
+    { name = "21", source_name = "cov21", color = "Green" },
+    { name = "22", source_name = "cov22", color = "Yellow" },
+]
 
-[[graphs.Gyroscope.plots]]
-name = "gZ"
-source_name = "gz"
-color = "Yellow"
+[[graphs]]
+name = "PID"
+plots = [
+    { name = "Setpoint", source_name = "set", color = "Blue" },
+    { name = "Position", source_name = "estpos", color = "Red" },
+    { name = "Steady state error", source_name = "sse", color = "Yellow" },
+    { name = "Control", source_name = "ctrl", color = "Green" },
+]
 
-[[graphs.Accelerometer.plots]]
-name = "raw aX"
-source_name = "ax"
-color = "Red"
+[[graphs]]
+name = "PID gains"
+plots = [
+    { name = "P", source_name = "pgain", color = "Red" },
+    { name = "I", source_name = "igain", color = "Blue" },
+    { name = "D", source_name = "dgain", color = "Green" },
+]
 
-[[graphs.Accelerometer.plots]]
-name = "aY"
-source_name = "ay"
-color = "Green"
+[[graphs]]
+name = "Gyro"
+plots = [
+    { name = "gX", source_name = "gx", color = "Red" },
+    { name = "gY", source_name = "gy", color = "Green" },
+    { name = "gZ", source_name = "gz", color = "Yellow" },
+]
 
-[[graphs.Accelerometer.plots]]
-name = "aZ"
-source_name = "az"
-color = "Yellow"
+[[graphs]]
+name = "Accelerometer"
+plots = [
+    { name = "raw aX", source_name = "ax", color = "Red" },
+    { name = "raw aY", source_name = "ay", color = "Green" },
+    { name = "raw aZ", source_name = "az", color = "Yellow" },
+]
 
-[[graphs.HPAccelerometer.plots]]
-name = "high aX"
-source_name = "hpax"
-color = "Red"
+[[graphs]]
+name = "Accelerometer high-pass"
+plots = [
+    { name = "high aX", source_name = "hpax", color = "Red" },
+    { name = "high aY", source_name = "hpay", color = "Green" },
+    { name = "high aZ", source_name = "hpaz", color = "Yellow" },
+]
 
-[[graphs.HPAccelerometer.plots]]
-name = "aY"
-source_name = "hpay"
-color = "Green"
-
-[[graphs.HPAccelerometer.plots]]
-name = "aZ"
-source_name = "hpaz"
-color = "Yellow"
-
-[[graphs.LPAccelerometer.plots]]
-name = "low aX"
-source_name = "lpax"
-color = "Red"
-
-[[graphs.LPAccelerometer.plots]]
-name = "aY"
-source_name = "lpay"
-color = "Green"
-
-[[graphs.LPAccelerometer.plots]]
-name = "aZ"
-source_name = "lpaz"
-color = "Yellow"
-
-[[graphs.Kalman.plots]]
-name = "Rot"
-source_name = "estrot"
-color = "Red"
-
-[[graphs.Kalman.plots]]
-name = "Pos"
-source_name = "estpos"
-color = "Blue"
-
-[[graphs.Covariance.plots]]
-name = "11"
-source_name = "cov11"
-color = "Red"
-
-[[graphs.Covariance.plots]]
-name = "12"
-source_name = "cov12"
-color = "Blue"
-
-[[graphs.Covariance.plots]]
-name = "21"
-source_name = "cov21"
-color = "Green"
-
-[[graphs.Covariance.plots]]
-name = "22"
-source_name = "cov22"
-color = "Yellow"
-
-[[graphs.PIDGains.plots]]
-name = "P"
-source_name = "pgain"
-color = "Red"
-
-[[graphs.PIDGains.plots]]
-name = "I"
-source_name = "igain"
-color = "Blue"
-
-[[graphs.PIDGains.plots]]
-name = "D"
-source_name = "dgain"
-color = "Green"
-
-[[graphs.Control.plots]]
-name = "Setpoint"
-source_name = "set"
-color = "Blue"
-
-[[graphs.Control.plots]]
-name = "Position"
-source_name = "estpos"
-color = "Red"
-
-[[graphs.Control.plots]]
-name = "Steady state error"
-source_name = "sse"
-color = "Yellow"
-
-[[graphs.Control.plots]]
-name = "Control"
-source_name = "ctrl"
-color = "Green"
+[[graphs]]
+name = "Accelerometer low-pass"
+plots = [
+    { name = "low aX", source_name = "lpax", color = "Red" },
+    { name = "low aY", source_name = "lpay", color = "Green" },
+    { name = "low aZ", source_name = "lpaz", color = "Yellow" },
+]
