@@ -46,11 +46,13 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) ->
                                 OffsetDateTime::now_local().unwrap(),
                                 &frame
                                     .into_iter()
-                                    .filter_map(|(s, v)| {
-                                        if let transport::telemetry::DataPoint::F32(f) = v {
-                                            Some((s, f))
-                                        } else {
-                                            None
+                                    .filter_map(|(s, v)| match v {
+                                        transport::telemetry::DataPoint::F32(n) => Some((s, n)),
+                                        transport::telemetry::DataPoint::U32(n) => {
+                                            Some((s, n as f32))
+                                        }
+                                        transport::telemetry::DataPoint::I32(n) => {
+                                            Some((s, n as f32))
                                         }
                                     })
                                     .collect::<Vec<_>>(),
