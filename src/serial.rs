@@ -43,7 +43,7 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) ->
                     match read_serial(&mut tty, &mut message_bytes).await {
                         Some(transport::Package::Telemetry(frame)) => {
                             let internal_frame = Frame::new(
-                                OffsetDateTime::now_utc(),
+                                OffsetDateTime::now_local().unwrap(),
                                 &frame
                                     .into_iter()
                                     .filter_map(|(s, v)| {
