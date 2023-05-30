@@ -4,38 +4,58 @@ data_timeout = 1
 window_size = 10
 
 [serial]
-path = "/dev/ttys005"
+path = "/dev/ttys003"
 baud = 9600
 
 [[commands]]
-name = "Setpoint +"
-command = "s+"
+name = "Roll +"
+command = "roll+"
+color = "Green"
+
+[[commands]]
+name = "Roll -"
+command = "roll-"
+color = "Green"
+
+[[commands]]
+name = "Pitch +"
+command = "pitch+"
 color = "Blue"
 
 [[commands]]
-name = "Setpoint -"
-command = "s-"
+name = "Pitch -"
+command = "pitch-"
 color = "Blue"
+
+[[commands]]
+name = "Yaw +"
+command = "yaw+"
+color = "Yellow"
+
+[[commands]]
+name = "Yaw -"
+command = "yaw-"
+color = "Yellow"
 
 [[commands]]
 name = "P Gain +"
 command = "p+"
-color = "Orange"
+color = "Green"
 
 [[commands]]
 name = "P Gain -"
 command = "p-"
-color = "Orange"
+color = "Green"
 
 [[commands]]
 name = "I Gain +"
 command = "i+"
-color = "Green"
+color = "Blue"
 
 [[commands]]
 name = "I Gain -"
 command = "i-"
-color = "Green"
+color = "Blue"
 
 [[commands]]
 name = "D Gain +"
@@ -47,6 +67,16 @@ name = "D Gain -"
 command = "d-"
 color = "Yellow"
 
+[[commands]]
+name = "Test program"
+command = "t"
+color = "Orange"
+
+[[commands]]
+name = "Idle"
+command = "idle"
+color = "Red"
+
 [[graphs]]
 name = "VOT"
 plots = [
@@ -54,28 +84,44 @@ plots = [
 ]
 
 [[graphs]]
-name = "Kalman estimate"
+name = "State"
 plots = [
-    { name = "Rot", source_name = "estrot", color = "Red" },
-    { name = "Pos", source_name = "estpos", color = "Blue" },
+    { name = "State", source_name = "state", color = "Blue" },
 ]
 
 [[graphs]]
-name = "Kalman covariance"
+name = "Rotation"
 plots = [
-    { name = "11", source_name = "cov11", color = "Red" },
-    { name = "12", source_name = "cov12", color = "Blue" },
-    { name = "21", source_name = "cov21", color = "Green" },
-    { name = "22", source_name = "cov22", color = "Yellow" },
+    { name = "roll", source_name = "roll", color = "Red" },
+    { name = "pitch", source_name = "pitch", color = "Blue" },
+    { name = "yaw", source_name = "yaw", color = "Green" },
 ]
 
 [[graphs]]
-name = "PID"
+name = "Roll"
 plots = [
-    { name = "Setpoint", source_name = "set", color = "Blue" },
-    { name = "Position", source_name = "estpos", color = "Red" },
-    { name = "Steady state error", source_name = "sse", color = "Yellow" },
-    { name = "Control", source_name = "ctrl", color = "Green" },
+    { name = "Setpoint", source_name = "set_roll", color = "Blue" },
+    { name = "Roll", source_name = "roll", color = "Red" },
+    { name = "SSE", source_name = "sse_roll", color = "Yellow" },
+    { name = "Control", source_name = "ctrl_roll", color = "Green" },
+]
+
+[[graphs]]
+name = "Pitch"
+plots = [
+    { name = "Setpoint", source_name = "set_pitch", color = "Blue" },
+    { name = "Pitch", source_name = "pitch", color = "Red" },
+    { name = "SSE", source_name = "sse_pitch", color = "Yellow" },
+    { name = "Control", source_name = "ctrl_pitch", color = "Green" },
+]
+
+[[graphs]]
+name = "Yaw"
+plots = [
+    { name = "Setpoint", source_name = "set_yaw", color = "Blue" },
+    { name = "Yaw", source_name = "yaw", color = "Red" },
+    { name = "SSE", source_name = "sse_yaw", color = "Yellow" },
+    { name = "Control", source_name = "ctrl_yaw", color = "Green" },
 ]
 
 [[graphs]]
@@ -97,23 +143,28 @@ plots = [
 [[graphs]]
 name = "Accelerometer"
 plots = [
-    { name = "raw aX", source_name = "ax", color = "Red" },
-    { name = "raw aY", source_name = "ay", color = "Green" },
-    { name = "raw aZ", source_name = "az", color = "Yellow" },
+    { name = "aX", source_name = "ax", color = "Red" },
+    { name = "aY", source_name = "ay", color = "Green" },
+    { name = "aZ", source_name = "az", color = "Yellow" },
 ]
 
 [[graphs]]
-name = "Accelerometer high-pass"
+name = "Rotation Quartenion"
 plots = [
-    { name = "high aX", source_name = "hpax", color = "Red" },
-    { name = "high aY", source_name = "hpay", color = "Green" },
-    { name = "high aZ", source_name = "hpaz", color = "Yellow" },
+    { name = "i", source_name = "qi", color = "Red" },
+    { name = "j", source_name = "qj", color = "Blue" },
+    { name = "k", source_name = "qk", color = "Green" },
+    { name = "w", source_name = "qw", color = "Yellow" },
 ]
 
 [[graphs]]
-name = "Accelerometer low-pass"
+name = "Kalman covariance"
 plots = [
-    { name = "low aX", source_name = "lpax", color = "Red" },
-    { name = "low aY", source_name = "lpay", color = "Green" },
-    { name = "low aZ", source_name = "lpaz", color = "Yellow" },
+    { name = "00", source_name = "cov00", color = "Red" },
+    { name = "11", source_name = "cov11", color = "Blue" },
+    { name = "22", source_name = "cov22", color = "Green" },
+    { name = "33", source_name = "cov33", color = "Red" },
+    { name = "44", source_name = "cov44", color = "Blue" },
+    { name = "55", source_name = "cov55", color = "Green" },
+    { name = "66", source_name = "cov66", color = "Orange" },
 ]

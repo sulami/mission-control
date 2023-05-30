@@ -41,13 +41,18 @@ impl Recorder {
                         }
                     }
                     Message::Command(cmd) => match cmd {
-                        Command::Export => {
-                            if let Err(e) = self.export() {
+                        Command::Export => match self.export() {
+                            Ok(path) => {
+                                let _ = tx.send(Message::Log(format!(
+                                    "[SYSTEM] Exported data to {path}"
+                                )));
+                            }
+                            Err(e) => {
                                 let _ = tx.send(Message::Log(format!(
                                     "[SYSTEM] Failed to export data: {e}"
                                 )));
                             }
-                        }
+                        },
                         Command::Reset => {
                             self.reset();
                         }
@@ -68,7 +73,7 @@ impl Recorder {
         self.frames.clear();
     }
 
-    fn export(&self) -> Result<()> {
+    fn export(&self) -> Result<String> {
         let path = format!(
             "mctl-{}.csv",
             OffsetDateTime::now_local()
@@ -110,6 +115,6 @@ impl Recorder {
 
         wtr.flush()?;
 
-        Ok(())
+        Ok(path)
     }
 }
