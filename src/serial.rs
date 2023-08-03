@@ -23,8 +23,12 @@ pub async fn send_commands(
         match tokio_serial::new(path, baud_rate).open() {
             Ok(mut tty) => {
                 if let Ok(Message::Command(Command::SendCommand(cmd))) = rx.recv().await {
-                    let _ = tx.send(Message::Log(format!("[SYSTEM] Sending command: {cmd}")));
-                    tty.write_all(cmd.as_bytes()).unwrap();
+                    let _ = match tty.write_all(cmd.as_bytes()) {
+                        Ok(_) => tx.send(Message::Log(format!("[SYSTEM] Sent command: {cmd}"))),
+                        Err(e) => tx.send(Message::Log(format!(
+                            "[SYSTEM] Failed to send command: {cmd} due to {e}"
+                        ))),
+                    };
                 }
             }
             _ => {
