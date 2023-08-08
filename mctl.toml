@@ -4,8 +4,19 @@ data_timeout = 1
 window_size = 10
 
 [serial]
-path = "/dev/ttys003"
+path = "/dev/tty.usbmodemBLIMP11"
+# path = "/dev/ttys006"
 baud = 9600
+
+[[commands]]
+name = "Surge 1"
+command = "surge 1"
+color = "Red"
+
+[[commands]]
+name = "Surge 0.1"
+command = "surge .1"
+color = "Yellow"
 
 [[commands]]
 name = "Roll +"
@@ -125,6 +136,33 @@ plots = [
 ]
 
 [[graphs]]
+name = "Surge"
+plots = [
+    { name = "Setpoint", source_name = "set_surge", color = "Blue" },
+    { name = "Surge", source_name = "surge", color = "Red" },
+    { name = "SSE", source_name = "sse_surge", color = "Yellow" },
+    { name = "Control", source_name = "ctrl_surge", color = "Green" },
+]
+
+[[graphs]]
+name = "Sway"
+plots = [
+    { name = "Setpoint", source_name = "set_sway", color = "Blue" },
+    { name = "Sway", source_name = "sway", color = "Red" },
+    { name = "SSE", source_name = "sse_sway", color = "Yellow" },
+    { name = "Control", source_name = "ctrl_sway", color = "Green" },
+]
+
+[[graphs]]
+name = "Heave"
+plots = [
+    { name = "Setpoint", source_name = "set_heave", color = "Blue" },
+    { name = "Heave", source_name = "heave", color = "Red" },
+    { name = "SSE", source_name = "sse_heave", color = "Yellow" },
+    { name = "Control", source_name = "ctrl_heave", color = "Green" },
+]
+
+[[graphs]]
 name = "PID gains"
 plots = [
     { name = "P", source_name = "pgain", color = "Red" },
@@ -160,11 +198,11 @@ plots = [
 [[graphs]]
 name = "Kalman covariance"
 plots = [
-    { name = "00", source_name = "cov00", color = "Red" },
-    { name = "11", source_name = "cov11", color = "Blue" },
-    { name = "22", source_name = "cov22", color = "Green" },
-    { name = "33", source_name = "cov33", color = "Red" },
-    { name = "44", source_name = "cov44", color = "Blue" },
-    { name = "55", source_name = "cov55", color = "Green" },
-    { name = "66", source_name = "cov66", color = "Orange" },
+    { name = "11", source_name = "cov11", color = "Red" },
+    { name = "22", source_name = "cov22", color = "Blue" },
+    { name = "33", source_name = "cov33", color = "Green" },
+    { name = "44", source_name = "cov44", color = "Yellow" },
+    { name = "55", source_name = "cov55", color = "Red" },
+    { name = "66", source_name = "cov66", color = "Blue" },
+    { name = "77", source_name = "cov77", color = "Green" },
 ]

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use postcard::take_from_bytes_cobs;
 use postcard_telemetry::transport;
 use time::OffsetDateTime;
@@ -45,7 +45,7 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) ->
                 let mut message_bytes: Vec<u8> = vec![];
                 loop {
                     match read_serial(&mut tty, &mut message_bytes).await {
-                        Some(transport::Package::Telemetry(frame)) => {
+                        Ok(Some(transport::Package::Telemetry(frame))) => {
                             let internal_frame = Frame::new(
                                 OffsetDateTime::now_local().unwrap(),
                                 &frame
@@ -64,16 +64,30 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) ->
                                 println!("[WARN] Message bus saturated, losing data")
                             }
                         }
-                        Some(transport::Package::Log(log)) => {
+                        Ok(Some(transport::Package::Log(log))) => {
                             if message_bus.send(Message::Log(format!("{log}"))).is_err() {
                                 println!("[WARN] Message bus saturated, losing data")
                             }
                         }
-                        None => {}
+                        Ok(None) => {
+                            // TTY might be closed, return to outer loop.
+                            break;
+                        }
+                        Err(e) => {
+                            if message_bus
+                                .send(Message::Log(format!("[WARN] {e}")))
+                                .is_err()
+                            {
+                                println!("[WARN] Message bus saturated, losing data")
+                            }
+                        }
                     }
                 }
             }
-            Err(_) => {
+            Err(e) => {
+                let _ = message_bus.send(Message::Log(format!(
+                    "[WARN] TTY disconnected, waiting for connection... ({e})"
+                )));
                 sleep(Duration::from_secs(1)).await;
             }
         }
@@ -84,24 +98,39 @@ pub async fn listen(path: &str, baud_rate: u32, message_bus: Sender<Message>) ->
 async fn read_serial(
     tty: &mut (impl AsyncRead + std::marker::Unpin),
     message_bytes: &mut Vec<u8>,
-) -> Option<transport::Package> {
-    let mut buf = [0u8; 1024];
+) -> Result<Option<transport::Package>> {
+    let mut buf = [0u8; 2048];
 
     if let Ok(n) = tty.read(&mut buf).await {
         message_bytes.extend_from_slice(&buf[..n]);
         match take_from_bytes_cobs::<transport::Package>(message_bytes) {
             Ok((package, rest)) => {
                 *message_bytes = rest.to_vec();
-                return Some(package);
+                return Ok(Some(package));
             }
             Err(postcard::Error::DeserializeBadEncoding) => {
-                message_bytes.clear();
+                // This can happen if we have some bytes but not
+                // enough to assemble a full message, especially a
+                // large one. In that case we should just continue
+                // reading. If we encounter a zero byte though, the
+                // message should have ended, so we discard the junk.
+                if let Some(idx) = message_bytes.iter().position(|&b| b == 0) {
+                    println!(
+                        "[WARN] Got bad encoding: {}",
+                        message_bytes
+                            .iter()
+                            .take(idx)
+                            .map(|b| format!("{b:x?}"))
+                            .collect::<String>()
+                    );
+                    message_bytes.drain(..idx);
+                }
             }
             Err(postcard::Error::DeserializeUnexpectedEnd) => {
-                // NB We hit these because zero bytes are the
-                // end-of-package markers in COBS, but serial devices
-                // spit out zeroes if there's no actual data. Just
-                // skip over the zeroes.
+                // We hit these because zero bytes are the
+                // end-of-package markers in COBS, but simulated
+                // serial devices spit out zeroes if there's no actual
+                // data. Just skip over the zeroes.
                 match message_bytes.iter().position(|&b| b != 0) {
                     Some(idx) => {
                         message_bytes.drain(..idx);
@@ -111,8 +140,10 @@ async fn read_serial(
                     }
                 }
             }
-            Err(_) => {}
+            Err(e) => {
+                return Err(anyhow!("Got an error reading serial device: {e}"));
+            }
         }
     }
-    None
+    Ok(None)
 }
